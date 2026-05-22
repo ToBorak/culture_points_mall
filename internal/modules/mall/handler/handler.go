@@ -18,6 +18,7 @@ func New(r *repository.GormRepo, s *service.Service) *Handler { return &Handler{
 func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/api/v1/mall/items", h.list)
 	rg.POST("/api/v1/mall/blindbox/draw", h.draw)
+	rg.POST("/api/v1/admin/mall/items", h.create)
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -51,4 +52,37 @@ func (h *Handler) draw(c *gin.Context) {
 		return
 	}
 	c.JSON(200, res)
+}
+
+type createItemReq struct {
+	Type     string `json:"type" binding:"required"`
+	Name     string `json:"name" binding:"required"`
+	Cost     int    `json:"cost" binding:"required"`
+	Stock    *int   `json:"stock"`
+	ImageURL string `json:"image_url"`
+}
+
+func (h *Handler) create(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	if tid == 0 {
+		tid = 1
+	}
+	var req createItemReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	it, err := h.Svc.CreateItem(c.Request.Context(), service.CreateItemCmd{
+		TenantID: tid,
+		Type:     req.Type,
+		Name:     req.Name,
+		Cost:     req.Cost,
+		Stock:    req.Stock,
+		ImageURL: req.ImageURL,
+	})
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, it)
 }
