@@ -4,6 +4,15 @@ import "encoding/json"
 
 type RequestID json.RawMessage
 
+func (r *RequestID) UnmarshalJSON(data []byte) error {
+	*r = RequestID(data)
+	return nil
+}
+
+func (r RequestID) MarshalJSON() ([]byte, error) {
+	return json.RawMessage(r).MarshalJSON()
+}
+
 type Request struct {
 	JSONRPC string          `json:"jsonrpc"`
 	ID      *RequestID      `json:"id,omitempty"`
