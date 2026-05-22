@@ -21,6 +21,9 @@ import (
 	achvsvc "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/service"
 	lbh "github.com/standardsoftware/culture_points_mall/internal/modules/leaderboard/handler"
 	lbsvc "github.com/standardsoftware/culture_points_mall/internal/modules/leaderboard/service"
+	mallh "github.com/standardsoftware/culture_points_mall/internal/modules/mall/handler"
+	mallrepo "github.com/standardsoftware/culture_points_mall/internal/modules/mall/repository"
+	mallsvc "github.com/standardsoftware/culture_points_mall/internal/modules/mall/service"
 	passporth "github.com/standardsoftware/culture_points_mall/internal/modules/passport/handler"
 	pointsh "github.com/standardsoftware/culture_points_mall/internal/modules/points/handler"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
@@ -84,6 +87,9 @@ func Build(deps Deps) *gin.Engine {
 	signinHandlerInst := signinh.New(signinSvc)
 	signinHandlerInst.Register(authed)
 	signinHandlerInst.RegisterWS(open)
+	mallRepo := mallrepo.New(deps.DB)
+	mallSvc := mallsvc.New(mallRepo, pointsSvc, valuesSvc)
+	mallh.New(mallRepo, mallSvc).Register(authed)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(authed)
 	}
