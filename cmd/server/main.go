@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/standardsoftware/culture_points_mall/internal/config"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
@@ -20,6 +21,8 @@ import (
 	agentsvc "github.com/standardsoftware/culture_points_mall/internal/modules/agent/service"
 	"github.com/standardsoftware/culture_points_mall/internal/modules/agent/tools"
 	lbsvc "github.com/standardsoftware/culture_points_mall/internal/modules/leaderboard/service"
+	mallrepo "github.com/standardsoftware/culture_points_mall/internal/modules/mall/repository"
+	"github.com/standardsoftware/culture_points_mall/internal/modules/mall/worker"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
 	valuesrepo "github.com/standardsoftware/culture_points_mall/internal/modules/values/repository"
@@ -61,6 +64,12 @@ func main() {
 	actRepo := activitiesrepo.New(db)
 	actSvc := activitiessvc.New(actRepo, vsvc)
 	achvSvcInst := achvsvc.New(&achvsvc.Wrap{Inner: achvrepo.New(db)}, pointsSvc, vsvc)
+
+	// 启动 TCC 兜底 sweeper（定时取消过期 freeze）
+	sweeperCtx, sweeperCancel := context.WithCancel(context.Background())
+	defer sweeperCancel()
+	sweeper := &worker.FreezeSweeper{Repo: mallrepo.New(db), Points: pointsSvc}
+	sweeper.Start(sweeperCtx, 5*time.Second)
 
 	toolReg := tools.NewRegistry()
 	tools.RegisterBusiness(toolReg, tools.BusinessDeps{
