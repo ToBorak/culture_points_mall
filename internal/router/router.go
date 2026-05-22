@@ -10,6 +10,9 @@ import (
 	"github.com/standardsoftware/culture_points_mall/internal/config"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 
+	acth "github.com/standardsoftware/culture_points_mall/internal/modules/activities/handler"
+	actrepo "github.com/standardsoftware/culture_points_mall/internal/modules/activities/repository"
+	actsvc "github.com/standardsoftware/culture_points_mall/internal/modules/activities/service"
 	achvh "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/handler"
 	achvrepo "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/repository"
 	achvsvc "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/service"
@@ -49,8 +52,12 @@ func Build(deps Deps) *gin.Engine {
 	achvRepo := achvrepo.New(deps.DB)
 	achvSvc := achvsvc.New(&achvsvc.Wrap{Inner: achvRepo}, pointsSvc, valuesSvc)
 
+	actRepo := actrepo.New(deps.DB)
+	actSvc := actsvc.New(actRepo, valuesSvc)
+
 	// 受保护组
 	authed := r.Group("/", auth.RequireJWT(signer))
+	acth.New(actSvc).Register(authed)
 	pointsh.New(pointsSvc, valuesSvc).Register(authed)
 	usersh.New(usersvc.New(usersrepo.New(deps.DB))).Register(authed)
 	achvh.New(achvSvc).Register(authed)
