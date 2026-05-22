@@ -49,7 +49,7 @@ func Build(deps Deps) *gin.Engine {
 
 	// 受保护组
 	authed := r.Group("/", auth.RequireJWT(signer))
-	pointsh.New(pointsSvc).Register(authed)
+	pointsh.New(pointsSvc, valuesSvc).Register(authed)
 	usersh.New(usersvc.New(usersrepo.New(deps.DB))).Register(authed)
 	achvh.New(achvSvc).Register(authed)
 	passporth.New(pointsSvc, achvSvc).Register(authed)
