@@ -9,6 +9,7 @@ import (
 	"github.com/standardsoftware/culture_points_mall/internal/auth"
 	"github.com/standardsoftware/culture_points_mall/internal/config"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
+	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
 
 	acth "github.com/standardsoftware/culture_points_mall/internal/modules/activities/handler"
 	actrepo "github.com/standardsoftware/culture_points_mall/internal/modules/activities/repository"
@@ -36,6 +37,7 @@ type Deps struct {
 	DingMock   *dingtalk.MockClient
 	DingBus    *dingtalk.Bus
 	DingClient dingtalk.Client
+	LLM        llm.Client
 }
 
 func Build(deps Deps) *gin.Engine {
