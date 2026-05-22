@@ -19,10 +19,11 @@ import (
 )
 
 type Deps struct {
-	DB       *gorm.DB
-	Cfg      *config.Config
-	DingMock *dingtalk.MockClient
-	DingBus  *dingtalk.Bus
+	DB         *gorm.DB
+	Cfg        *config.Config
+	DingMock   *dingtalk.MockClient
+	DingBus    *dingtalk.Bus
+	DingClient dingtalk.Client
 }
 
 func Build(deps Deps) *gin.Engine {
@@ -44,6 +45,7 @@ func Build(deps Deps) *gin.Engine {
 	open := r.Group("/")
 	valuesh.New(valuesSvc).Register(open)
 	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(open)
+	auth.NewHandler(deps.DB, deps.Cfg, deps.DingClient).Register(open)
 
 	return r
 }

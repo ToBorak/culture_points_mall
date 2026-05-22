@@ -25,6 +25,7 @@ func main() {
 	}
 	bus := dingtalk.NewBus()
 	mock := dingtalk.NewMock(db, bus)
+	var ding dingtalk.Client = mock
 
 	// 启动时灌入默认维度
 	vsvc := valuessvc.New(valuesrepo.New(db))
@@ -32,7 +33,7 @@ func main() {
 		log.Printf("seed values warn: %v", err)
 	}
 
-	r := router.Build(router.Deps{DB: db, Cfg: cfg, DingMock: mock, DingBus: bus})
+	r := router.Build(router.Deps{DB: db, Cfg: cfg, DingMock: mock, DingBus: bus, DingClient: ding})
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("server starting on %s", addr)
 	if err := r.Run(addr); err != nil {
