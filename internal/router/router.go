@@ -13,6 +13,8 @@ import (
 	achvh "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/handler"
 	achvrepo "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/repository"
 	achvsvc "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/service"
+	lbh "github.com/standardsoftware/culture_points_mall/internal/modules/leaderboard/handler"
+	lbsvc "github.com/standardsoftware/culture_points_mall/internal/modules/leaderboard/service"
 	passporth "github.com/standardsoftware/culture_points_mall/internal/modules/passport/handler"
 	pointsh "github.com/standardsoftware/culture_points_mall/internal/modules/points/handler"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
@@ -53,6 +55,7 @@ func Build(deps Deps) *gin.Engine {
 	usersh.New(usersvc.New(usersrepo.New(deps.DB))).Register(authed)
 	achvh.New(achvSvc).Register(authed)
 	passporth.New(pointsSvc, achvSvc).Register(authed)
+	lbh.New(lbsvc.New(deps.DB)).Register(authed)
 
 	// 开放组（含 admin 演示，正式生产应再加 admin role 校验）
 	open := r.Group("/")
