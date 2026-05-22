@@ -1,0 +1,37 @@
+server:
+  port: 8080
+mcp:
+  port: 8090
+mysql:
+  dsn: "root:root@tcp(localhost:3306)/cpm?charset=utf8mb4&parseTime=true&loc=Local"
+redis:
+  addr: "localhost:6379"
+  db: 0
+jwt:
+  secret: "dev-secret-change-me"
+  ttl_hours: 168
+dingtalk:
+  mode: "mock"
+  app_key: ""
+  app_secret: ""
+  corp_id: ""
+  agent_id: 0
+llm:
+  provider: "claude"
+  claude:
+    api_key: "${ANTHROPIC_API_KEY}"
+    base_url: "https://api.anthropic.com"
+    model: "claude-sonnet-4-7"
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: "https://api.openai.com/v1"
+    model: "gpt-5"
+  deepseek:
+    api_key: "${DEEPSEEK_API_KEY}"
+    base_url: "https://api.deepseek.com"
+    model: "deepseek-chat"
+signin:
+  secret: "dev-signin-secret"
+  window_seconds: 60
+seed:
+  default_tenant_id: 1
