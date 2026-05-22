@@ -1,0 +1,1956 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>文化积分商城 · AI 智能运营平台 | 项目方案</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Permanent+Marker&family=ZCOOL+KuaiLe&family=ZCOOL+QingKe+HuangYou&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --ink: #1a1a1a;
+  --paper: #fffef8;
+  --accent-red: #ff4757;
+  --accent-orange: #ff9f43;
+  --accent-yellow: #ffd93d;
+  --accent-blue: #4facfe;
+  --accent-pink: #ff7eb3;
+  --accent-green: #6dd5a3;
+  --accent-purple: #a55eea;
+  --halftone: rgba(0,0,0,.08);
+}
+
+html, body {
+  height: 100%;
+  font-family: 'ZCOOL KuaiLe', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === 漫画背景纹理 === */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, var(--halftone) 1px, transparent 1.5px),
+    radial-gradient(circle at 70% 70%, var(--halftone) 1px, transparent 1.5px);
+  background-size: 18px 18px, 24px 24px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* === 幻灯片容器 === */
+.deck {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+.slide {
+  position: absolute;
+  inset: 0;
+  padding: 40px 60px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(40px);
+  transition: opacity .45s ease, transform .45s ease;
+  display: flex; flex-direction: column;
+  z-index: 2;
+}
+.slide.active { opacity: 1; pointer-events: auto; transform: translateX(0); }
+
+/* === 导航 === */
+.nav {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  padding: 8px 18px;
+  box-shadow: 4px 4px 0 var(--ink);
+  z-index: 10;
+}
+.nav button {
+  border: none; background: none; cursor: pointer;
+  font-size: 20px; font-weight: bold; color: var(--ink);
+  padding: 4px 10px;
+  font-family: 'Bangers', cursive;
+}
+.nav button:hover { color: var(--accent-red); transform: scale(1.15); }
+.nav .pageno {
+  font-family: 'Bangers', cursive; font-size: 18px;
+  letter-spacing: 1px;
+  min-width: 56px; text-align: center;
+}
+
+.toc-btn {
+  position: fixed; top: 18px; right: 18px;
+  background: var(--accent-yellow);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 6px 14px;
+  font-family: 'ZCOOL KuaiLe'; font-size: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+  z-index: 10;
+}
+.toc-btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+
+/* === 顶部标签条 === */
+.slide-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-family: 'Bangers', cursive;
+  font-size: 14px; letter-spacing: 2px;
+  align-self: flex-start;
+  margin-bottom: 10px;
+}
+.slide-tag.red { background: var(--accent-red); }
+.slide-tag.blue { background: var(--accent-blue); }
+.slide-tag.orange { background: var(--accent-orange); }
+.slide-tag.green { background: var(--accent-green); }
+.slide-tag.purple { background: var(--accent-purple); }
+.slide-tag.pink { background: var(--accent-pink); }
+
+/* === 标题 === */
+h1.bigtitle {
+  font-family: 'ZCOOL QingKe HuangYou', 'PingFang SC', sans-serif;
+  font-size: 64px; line-height: 1.05;
+  color: var(--ink);
+  letter-spacing: 1px;
+  text-shadow: 4px 4px 0 var(--accent-yellow);
+}
+h2.title {
+  font-family: 'ZCOOL QingKe HuangYou', 'PingFang SC', sans-serif;
+  font-size: 44px; line-height: 1.1;
+  position: relative; display: inline-block;
+}
+h2.title::after {
+  content: ''; position: absolute; left: 0; bottom: -6px;
+  width: 100%; height: 8px;
+  background: linear-gradient(90deg, var(--accent-yellow) 50%, transparent 50%);
+  background-size: 14px 8px;
+  z-index: -1;
+}
+.subtitle {
+  font-size: 18px; color: #555;
+  margin-top: 10px;
+  font-family: 'ZCOOL KuaiLe';
+}
+
+/* === 漫画框 === */
+.panel {
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 6px 6px 0 var(--ink);
+  padding: 18px 22px;
+  position: relative;
+}
+.panel.shadow-red { box-shadow: 6px 6px 0 var(--accent-red); }
+.panel.shadow-blue { box-shadow: 6px 6px 0 var(--accent-blue); }
+.panel.shadow-orange { box-shadow: 6px 6px 0 var(--accent-orange); }
+.panel.shadow-pink { box-shadow: 6px 6px 0 var(--accent-pink); }
+.panel.shadow-green { box-shadow: 6px 6px 0 var(--accent-green); }
+.panel.shadow-yellow { box-shadow: 6px 6px 0 var(--accent-yellow); }
+.panel.shadow-purple { box-shadow: 6px 6px 0 var(--accent-purple); }
+
+.panel-title {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'ZCOOL KuaiLe';
+  font-size: 22px;
+  margin-bottom: 10px;
+}
+.panel-title .badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  background: var(--accent-yellow);
+  border: 2.5px solid var(--ink);
+  border-radius: 50%;
+  font-family: 'Bangers', cursive;
+  font-size: 20px;
+}
+
+/* === Speech bubble === */
+.bubble {
+  position: relative;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 22px;
+  padding: 14px 20px;
+  font-family: 'ZCOOL KuaiLe';
+  font-size: 17px;
+  box-shadow: 4px 4px 0 var(--ink);
+  display: inline-block;
+  max-width: 100%;
+}
+.bubble::before, .bubble::after {
+  content: ''; position: absolute;
+  width: 0; height: 0;
+  border-style: solid;
+}
+.bubble.tail-bl::before {
+  bottom: -16px; left: 30px;
+  border-width: 16px 12px 0 12px;
+  border-color: var(--ink) transparent transparent transparent;
+}
+.bubble.tail-bl::after {
+  bottom: -10px; left: 33px;
+  border-width: 12px 9px 0 9px;
+  border-color: var(--paper) transparent transparent transparent;
+}
+.bubble.tail-br::before {
+  bottom: -16px; right: 30px;
+  border-width: 16px 12px 0 12px;
+  border-color: var(--ink) transparent transparent transparent;
+}
+.bubble.tail-br::after {
+  bottom: -10px; right: 33px;
+  border-width: 12px 9px 0 9px;
+  border-color: var(--paper) transparent transparent transparent;
+}
+
+.shout {
+  display: inline-block;
+  font-family: 'Bangers', 'Permanent Marker', cursive;
+  font-size: 28px;
+  background: var(--accent-yellow);
+  border: 3px solid var(--ink);
+  padding: 6px 16px;
+  border-radius: 8px;
+  transform: rotate(-3deg);
+  box-shadow: 3px 3px 0 var(--ink);
+  letter-spacing: 1px;
+}
+.shout.red { background: var(--accent-red); color: var(--paper); }
+.shout.blue { background: var(--accent-blue); color: var(--paper); }
+.shout.pink { background: var(--accent-pink); color: var(--paper); }
+
+/* === 高亮关键词 === */
+.kw {
+  background: linear-gradient(180deg, transparent 50%, var(--accent-yellow) 50%);
+  padding: 0 2px;
+  font-weight: bold;
+}
+.kw-red {
+  background: linear-gradient(180deg, transparent 50%, var(--accent-pink) 50%);
+  padding: 0 2px;
+  font-weight: bold;
+}
+.kw-blue {
+  background: linear-gradient(180deg, transparent 50%, var(--accent-blue) 50%);
+  padding: 0 2px;
+  font-weight: bold;
+  color: var(--paper);
+}
+
+/* === Grid 布局 === */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+
+.flex-row { display: flex; gap: 16px; align-items: stretch; }
+.flex-col { display: flex; flex-direction: column; gap: 12px; }
+
+/* === 表格 === */
+table.comic {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: 'ZCOOL KuaiLe';
+  font-size: 15px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+table.comic th {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 10px 14px;
+  text-align: left;
+  font-family: 'Bangers', cursive;
+  letter-spacing: 1.5px;
+  font-size: 17px;
+}
+table.comic td {
+  padding: 9px 14px;
+  border-top: 2px dashed #ddd;
+  vertical-align: top;
+}
+table.comic tr:nth-child(even) td { background: #fafaf3; }
+table.comic td.risk { color: var(--accent-red); font-weight: bold; }
+table.comic td.tag { font-weight: bold; }
+
+/* === 流程编号 === */
+.step {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 8px 0;
+}
+.step .n {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  background: var(--accent-yellow);
+  border: 2.5px solid var(--ink);
+  border-radius: 50%;
+  font-family: 'Bangers', cursive; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.step .txt { font-size: 15px; padding-top: 4px; }
+
+/* === 卡片 === */
+.card {
+  background: var(--paper);
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+  position: relative;
+  transition: transform .15s;
+}
+.card:hover { transform: translate(-1px,-1px); box-shadow: 5px 5px 0 var(--ink); }
+.card .ic {
+  font-size: 28px; line-height: 1;
+  display: inline-block; margin-bottom: 4px;
+}
+.card .tt {
+  font-family: 'ZCOOL KuaiLe'; font-size: 17px; font-weight: bold;
+  margin-bottom: 4px;
+}
+.card .dd { font-size: 13px; color: #555; line-height: 1.5; }
+.card.hi { background: var(--accent-yellow); }
+.card.hi2 { background: var(--accent-pink); color: var(--ink); }
+.card.hi2 .dd { color: var(--ink); }
+.card.hi3 { background: var(--accent-blue); color: var(--paper); }
+.card.hi3 .dd { color: var(--paper); }
+
+/* === 装饰元素 === */
+.deco-star {
+  position: absolute;
+  font-family: 'Bangers', cursive;
+  font-size: 50px; color: var(--accent-yellow);
+  -webkit-text-stroke: 2.5px var(--ink);
+  transform: rotate(-15deg);
+  z-index: 1;
+}
+.deco-lines {
+  position: absolute;
+  width: 80px; height: 80px;
+  background: repeating-linear-gradient(45deg, var(--ink), var(--ink) 2px, transparent 2px, transparent 8px);
+  opacity: .35;
+  pointer-events: none;
+}
+
+/* === 角色 SVG 容器 === */
+.char {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+.char svg { display: block; }
+
+/* === Mermaid 容器 === */
+.diagram {
+  flex: 1;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 6px 6px 0 var(--ink);
+  padding: 18px;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.diagram .mermaid { width: 100%; }
+
+/* === 时间轴 === */
+.timeline {
+  position: relative;
+  padding-left: 30px;
+}
+.timeline::before {
+  content: ''; position: absolute; left: 10px; top: 8px; bottom: 8px;
+  width: 4px; background: var(--ink); border-radius: 2px;
+}
+.tl-item {
+  position: relative;
+  padding: 8px 0 8px 16px;
+}
+.tl-item::before {
+  content: '';
+  position: absolute; left: -25px; top: 14px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent-orange);
+  border: 3px solid var(--ink);
+}
+
+/* === 引用大字 === */
+.quote {
+  font-family: 'Ma Shan Zheng', 'ZCOOL QingKe HuangYou', cursive;
+  font-size: 38px;
+  line-height: 1.4;
+  color: var(--ink);
+  position: relative;
+  padding-left: 30px;
+}
+.quote::before {
+  content: '"';
+  position: absolute; left: 0; top: -10px;
+  font-family: 'Bangers', cursive;
+  font-size: 80px;
+  color: var(--accent-red);
+}
+
+/* === 滚动隐藏 === */
+.diagram::-webkit-scrollbar { width: 8px; height: 8px; }
+.diagram::-webkit-scrollbar-thumb { background: var(--ink); border-radius: 4px; }
+
+/* === TOC === */
+.toc-panel {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  display: none; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.toc-panel.show { display: flex; }
+.toc-inner {
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  border-radius: 18px;
+  padding: 28px 32px;
+  max-width: 900px; width: 80%;
+  max-height: 80vh; overflow: auto;
+  box-shadow: 8px 8px 0 var(--ink);
+}
+.toc-inner h3 {
+  font-family: 'ZCOOL QingKe HuangYou'; font-size: 28px;
+  margin-bottom: 14px;
+}
+.toc-list {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 18px;
+}
+.toc-list a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  font-family: 'ZCOOL KuaiLe'; font-size: 16px;
+  border: 2px solid var(--ink); border-radius: 8px;
+  text-decoration: none; color: var(--ink);
+  background: var(--paper);
+  cursor: pointer;
+}
+.toc-list a:hover { background: var(--accent-yellow); transform: translate(-1px,-1px); }
+.toc-list a .no {
+  width: 28px; height: 28px;
+  background: var(--accent-orange);
+  border: 2px solid var(--ink); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Bangers'; font-size: 14px; flex-shrink: 0;
+}
+
+/* === 进度条 === */
+.progress {
+  position: fixed; top: 0; left: 0; height: 5px;
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-orange), var(--accent-yellow));
+  z-index: 11;
+  transition: width .4s;
+  border-right: 2px solid var(--ink);
+}
+
+/* === 工具类 === */
+.row { display: flex; gap: 16px; align-items: center; }
+.gap-sm { gap: 8px; }
+.mt-sm { margin-top: 8px; }
+.mt-md { margin-top: 16px; }
+.flex-1 { flex: 1; }
+.text-center { text-align: center; }
+small.lab { font-size: 12px; color: #666; letter-spacing: 1px; }
+
+/* === 速度线背景 === */
+.speed-bg {
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(75deg,
+      transparent, transparent 14px,
+      rgba(0,0,0,.04) 14px, rgba(0,0,0,.04) 16px);
+  pointer-events: none;
+}
+
+/* === 印章 === */
+.stamp {
+  position: absolute;
+  font-family: 'Bangers', cursive;
+  border: 4px double var(--accent-red);
+  color: var(--accent-red);
+  padding: 6px 14px;
+  font-size: 22px;
+  transform: rotate(-12deg);
+  letter-spacing: 2px;
+  opacity: .85;
+  border-radius: 6px;
+}
+
+/* === 数字大屏 === */
+.num-big {
+  font-family: 'Bangers', cursive;
+  font-size: 56px;
+  color: var(--accent-red);
+  -webkit-text-stroke: 2px var(--ink);
+  line-height: 1;
+}
+.num-lbl { font-size: 14px; color: #555; }
+
+/* === 滚动条 === */
+.scroll-y { overflow-y: auto; }
+.scroll-y::-webkit-scrollbar { width: 8px; }
+.scroll-y::-webkit-scrollbar-thumb { background: var(--ink); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<button class="toc-btn" onclick="toggleTOC()">📑 目录</button>
+
+<!-- ========== 目录面板 ========== -->
+<div class="toc-panel" id="tocPanel" onclick="if(event.target===this)toggleTOC()">
+  <div class="toc-inner">
+    <h3>📚 演示目录 · Table of Contents</h3>
+    <div class="toc-list" id="tocList"></div>
+  </div>
+</div>
+
+<div class="deck" id="deck">
+
+<!-- ====== Slide 1 · 封面 ====== -->
+<section class="slide active" data-title="封面">
+  <div class="speed-bg"></div>
+  <div class="deco-star" style="top:60px; right:120px;">★</div>
+  <div class="deco-star" style="top:140px; right:60px; font-size:32px; color:var(--accent-pink); -webkit-text-stroke:2px var(--ink);">✦</div>
+  <div class="deco-lines" style="left:40px; top:60px;"></div>
+  <div class="deco-lines" style="right:80px; bottom:80px; transform:rotate(45deg);"></div>
+
+  <div style="margin-top:60px; max-width:920px;">
+    <div style="display:inline-block; background:var(--accent-red); color:var(--paper); padding:6px 18px; font-family:'Bangers'; font-size:20px; letter-spacing:2px; border:3px solid var(--ink); box-shadow:4px 4px 0 var(--ink); transform:rotate(-2deg); margin-bottom:30px;">
+      HACKATHON · 2026
+    </div>
+    <h1 class="bigtitle" style="font-size:80px;">文化积分商城</h1>
+    <h1 class="bigtitle" style="font-size:64px; margin-top:10px; color:var(--accent-red); text-shadow:4px 4px 0 var(--ink);">AI 智能运营平台</h1>
+    <div style="margin-top:30px; display:flex; align-items:center; gap:16px;">
+      <span class="shout blue">v4 · GO 版</span>
+      <span class="shout red">黑客马拉松最终交付</span>
+      <span class="shout">MCP × 钉钉</span>
+    </div>
+    <div style="margin-top:60px; max-width:600px;">
+      <div class="bubble tail-bl" style="background:var(--accent-yellow);">
+        <span style="font-size:22px;">把企业文化从 <span class="kw">Excel 台账</span> 升级为<br/>
+        <span class="kw-red">AI 自动化 + 开放生态 + 跨企业互联</span> 的完整闭环！</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 角色 SVG -->
+  <div class="char" style="right:60px; bottom:60px;">
+    <svg width="280" height="320" viewBox="0 0 280 320" xmlns="http://www.w3.org/2000/svg">
+      <!-- 头发后 -->
+      <ellipse cx="140" cy="120" rx="78" ry="80" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+      <!-- 脸 -->
+      <ellipse cx="140" cy="130" rx="56" ry="62" fill="#fff4e8" stroke="#1a1a1a" stroke-width="3"/>
+      <!-- 头发前刘海 -->
+      <path d="M 84 100 Q 90 65 140 60 Q 190 65 196 100 Q 180 95 165 105 Q 155 100 140 105 Q 125 100 115 105 Q 100 95 84 100 Z" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+      <!-- 头发两边 -->
+      <path d="M 84 100 Q 70 130 80 175 Q 90 165 88 150 Z" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M 196 100 Q 210 130 200 175 Q 190 165 192 150 Z" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+      <!-- 眼睛 -->
+      <ellipse cx="118" cy="135" rx="9" ry="13" fill="#1a1a1a"/>
+      <ellipse cx="162" cy="135" rx="9" ry="13" fill="#1a1a1a"/>
+      <circle cx="121" cy="131" r="3" fill="#fff"/>
+      <circle cx="165" cy="131" r="3" fill="#fff"/>
+      <!-- 红晕 -->
+      <ellipse cx="105" cy="155" rx="8" ry="4" fill="#ffb3c8" opacity=".7"/>
+      <ellipse cx="175" cy="155" rx="8" ry="4" fill="#ffb3c8" opacity=".7"/>
+      <!-- 嘴巴 -->
+      <path d="M 132 165 Q 140 172 148 165" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- 耳机 -->
+      <path d="M 82 120 Q 78 110 86 95" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="72" y="115" width="18" height="22" rx="6" fill="#4facfe" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="190" y="115" width="18" height="22" rx="6" fill="#4facfe" stroke="#1a1a1a" stroke-width="3"/>
+      <!-- 身体 -->
+      <path d="M 90 195 L 90 290 L 190 290 L 190 195 Q 175 205 140 205 Q 105 205 90 195 Z" fill="#fff" stroke="#1a1a1a" stroke-width="3"/>
+      <!-- 衣服领口 -->
+      <path d="M 120 200 L 140 220 L 160 200" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+      <!-- 领带/胸花 -->
+      <rect x="135" y="218" width="10" height="14" fill="var(--accent-red)" stroke="#1a1a1a" stroke-width="2"/>
+      <!-- 名牌 -->
+      <rect x="100" y="240" width="80" height="22" rx="4" fill="var(--accent-yellow)" stroke="#1a1a1a" stroke-width="2.5"/>
+      <text x="140" y="256" text-anchor="middle" font-family="Bangers" font-size="14" fill="#1a1a1a">HR · AI</text>
+      <!-- 举手 -->
+      <circle cx="64" cy="170" r="14" fill="#fff4e8" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M 70 175 L 88 200" stroke="#1a1a1a" stroke-width="3"/>
+    </svg>
+  </div>
+
+  <div style="position:absolute; bottom:30px; left:60px; color:#888; font-size:14px;">
+    📅 2026-05-22 · 路演时长 5min · 团队：Standard Software
+  </div>
+</section>
+
+<!-- ====== Slide 2 · 痛点 ====== -->
+<section class="slide" data-title="背景痛点">
+  <span class="slide-tag red">CHAPTER 01 · 痛点</span>
+  <h2 class="title">今天的「企业文化」在裸奔 😫</h2>
+  <p class="subtitle">从图一图二的吐槽出发，看清四大死结</p>
+
+  <div class="grid-4" style="margin-top:24px; flex:1;">
+    <div class="panel shadow-red">
+      <div class="panel-title"><span class="badge" style="background:var(--accent-red);color:#fff;">📊</span>数据载体</div>
+      <p style="font-size:15px; line-height:1.7;">仅靠 <span class="kw">共享 Excel</span> 跑全公司积分</p>
+      <p style="font-size:13px; color:#777; margin-top:8px;">→ 误操作、并发冲突、零审计</p>
+      <div style="margin-top:10px; padding:8px 10px; background:#fff0f0; border-left:4px solid var(--accent-red); font-size:13px;">
+        🩸 图一：陈先生 <b>-4 分</b> 莫名其妙
+      </div>
+    </div>
+
+    <div class="panel shadow-orange">
+      <div class="panel-title"><span class="badge" style="background:var(--accent-orange);">⚙️</span>业务流程</div>
+      <p style="font-size:15px; line-height:1.7;">全人工，HR <span class="kw">手工加减分</span></p>
+      <p style="font-size:13px; color:#777; margin-top:8px;">→ 公平性存疑、规则不透明</p>
+      <div style="margin-top:10px; padding:8px 10px; background:#fff6e8; border-left:4px solid var(--accent-orange); font-size:13px;">
+        🧨 HR 每天 200+ 次 Excel 编辑
+      </div>
+    </div>
+
+    <div class="panel shadow-purple">
+      <div class="panel-title"><span class="badge" style="background:var(--accent-purple);color:#fff;">🚫</span>规则不闭环</div>
+      <p style="font-size:15px; line-height:1.7;"><span class="kw">扫码即扣分</span>无校验</p>
+      <p style="font-size:13px; color:#777; margin-top:8px;">→ 没抽奖也被扣分，体验差</p>
+      <div style="margin-top:10px; padding:8px 10px; background:#f5f0ff; border-left:4px solid var(--accent-purple); font-size:13px;">
+        💢 图二：扫了就扣，没抽到也亏
+      </div>
+    </div>
+
+    <div class="panel shadow-blue">
+      <div class="panel-title"><span class="badge" style="background:var(--accent-blue);color:#fff;">📉</span>增长瓶颈</div>
+      <p style="font-size:15px; line-height:1.7;">频次低、<span class="kw">无沉淀</span></p>
+      <p style="font-size:13px; color:#777; margin-top:8px;">→ 文化氛围难量化，激励无积累</p>
+      <div style="margin-top:10px; padding:8px 10px; background:#eaf6ff; border-left:4px solid var(--accent-blue); font-size:13px;">
+        📊 季度活动 = 季度遗忘
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:30px; display:flex; gap:30px; align-items:center;">
+    <div class="bubble tail-bl" style="max-width:520px;">
+      <span style="font-size:18px;">"我们不是想做一个更好用的 <span class="kw">Excel 替代品</span>，<br/>而是要把企业文化变成<span class="kw-red">可被 AI 操控的中台</span>！"</span>
+    </div>
+    <!-- 抓狂表情 -->
+    <svg width="120" height="120" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="50" fill="var(--accent-yellow)" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M 38 45 L 50 55 M 50 45 L 38 55" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+      <path d="M 70 45 L 82 55 M 82 45 L 70 55" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="60" cy="82" rx="14" ry="8" fill="#1a1a1a"/>
+      <ellipse cx="60" cy="82" rx="10" ry="5" fill="#ff4757"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ====== Slide 3 · 项目定位 ====== -->
+<section class="slide" data-title="项目定位">
+  <span class="slide-tag blue">CHAPTER 02 · 定位</span>
+  <h2 class="title">我们到底要做什么？</h2>
+
+  <div style="margin-top:24px; display:flex; gap:24px; align-items:flex-start;">
+    <div class="panel shadow-yellow" style="flex:1.2; padding:24px 28px; background:linear-gradient(135deg, #fff 60%, #fff5d6 100%);">
+      <div style="display:inline-block; background:var(--ink); color:var(--paper); font-family:'Bangers'; font-size:14px; padding:4px 12px; border-radius:4px; margin-bottom:10px;">PROJECT VISION</div>
+      <h3 style="font-family:'ZCOOL QingKe HuangYou'; font-size:32px; line-height:1.3;">
+        「钉钉里的<span class="kw-red">企业文化 AI 运营官</span><br/>×<br/><span class="kw">开放生态平台</span>」
+      </h3>
+      <p style="margin-top:16px; font-size:16px; line-height:1.7; color:#444;">
+        以 <b>积分</b> 为燃料，<b>AI</b> 为大脑，<br/>
+        <b style="color:var(--accent-red);">MCP 为神经接口</b>。
+      </p>
+    </div>
+
+    <!-- 形象 -->
+    <div style="width:260px; text-align:center;">
+      <svg width="240" height="240" viewBox="0 0 240 240">
+        <!-- 机器人头 -->
+        <rect x="60" y="40" width="120" height="100" rx="22" fill="#4facfe" stroke="#1a1a1a" stroke-width="3.5"/>
+        <!-- 天线 -->
+        <line x1="120" y1="40" x2="120" y2="20" stroke="#1a1a1a" stroke-width="3"/>
+        <circle cx="120" cy="16" r="6" fill="var(--accent-red)" stroke="#1a1a1a" stroke-width="2.5"/>
+        <!-- 眼睛屏幕 -->
+        <rect x="78" y="70" width="84" height="36" rx="6" fill="#1a1a1a"/>
+        <circle cx="100" cy="88" r="8" fill="var(--accent-yellow)"/>
+        <circle cx="140" cy="88" r="8" fill="var(--accent-yellow)"/>
+        <!-- 嘴 -->
+        <rect x="100" y="118" width="40" height="10" rx="3" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="110" y1="118" x2="110" y2="128" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="120" y1="118" x2="120" y2="128" stroke="#1a1a1a" stroke-width="2"/>
+        <line x1="130" y1="118" x2="130" y2="128" stroke="#1a1a1a" stroke-width="2"/>
+        <!-- 身体 -->
+        <rect x="70" y="145" width="100" height="70" rx="10" fill="#fff" stroke="#1a1a1a" stroke-width="3"/>
+        <text x="120" y="186" text-anchor="middle" font-family="Bangers" font-size="22" fill="#1a1a1a">MCP</text>
+        <text x="120" y="206" text-anchor="middle" font-family="ZCOOL KuaiLe" font-size="10" fill="#666">Neural Interface</text>
+      </svg>
+      <div style="font-family:'ZCOOL KuaiLe'; font-size:14px; color:#555;">「MCP 君」</div>
+    </div>
+  </div>
+
+  <h3 style="font-family:'ZCOOL QingKe HuangYou'; font-size:28px; margin-top:30px; margin-bottom:14px;">三大差异化叙事</h3>
+
+  <div class="grid-3" style="flex:1;">
+    <div class="card hi" style="padding:22px;">
+      <div style="font-family:'Bangers'; font-size:40px; color:var(--accent-red); -webkit-text-stroke:2px var(--ink);">①</div>
+      <div class="ic">🤖</div>
+      <div class="tt" style="font-size:22px;">AI 智能化</div>
+      <p class="dd" style="font-size:14px;">HR 自然语言即可运营文化，等于一支文化运营团队</p>
+    </div>
+    <div class="card hi3" style="padding:22px;">
+      <div style="font-family:'Bangers'; font-size:40px; color:var(--accent-yellow); -webkit-text-stroke:2px var(--ink);">②</div>
+      <div class="ic">🔌</div>
+      <div class="tt" style="font-size:22px; color:#fff;">开放生态</div>
+      <p class="dd" style="font-size:14px;">MCP 协议接入 Claude / ChatGPT 等任意 AI 客户端</p>
+    </div>
+    <div class="card hi2" style="padding:22px;">
+      <div style="font-family:'Bangers'; font-size:40px; color:var(--accent-blue); -webkit-text-stroke:2px var(--ink);">③</div>
+      <div class="ic">🌐</div>
+      <div class="tt" style="font-size:22px;">SaaS 想象</div>
+      <p class="dd" style="font-size:14px;">跨企业文化指数榜，行业基础设施雏形</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Slide 4 · 核心功能盘 ====== -->
+<section class="slide" data-title="核心功能盘">
+  <span class="slide-tag green">CHAPTER 03 · 核心功能</span>
+  <h2 class="title">六大核心功能 · 一图看穿</h2>
+  <p class="subtitle">图三图四需求落地 · 业务闭环</p>
+
+  <div class="grid-3" style="margin-top:24px; gap:20px;">
+    <div class="panel shadow-orange">
+      <div class="panel-title"><span class="badge">🏆</span>文化分排行榜</div>
+      <ul style="font-size:14px; line-height:1.8; padding-left:18px;">
+        <li>部门 · 个人 · 季度榜单</li>
+        <li>实时刷新，月环比箭头</li>
+        <li>钉钉工作台一屏直达</li>
+      </ul>
+    </div>
+    <div class="panel shadow-blue">
+      <div class="panel-title"><span class="badge">📅</span>活动中心</div>
+      <ul style="font-size:14px; line-height:1.8; padding-left:18px;">
+        <li>HR 发布 → 钉钉日程邀请</li>
+        <li>员工日程接受 = 报名</li>
+        <li>现场签到 → HR 审核加分</li>
+      </ul>
+    </div>
+    <div class="panel shadow-pink">
+      <div class="panel-title"><span class="badge">👤</span>我的</div>
+      <ul style="font-size:14px; line-height:1.8; padding-left:18px;">
+        <li>个人积分总览</li>
+        <li>积分流水明细</li>
+        <li>成就<span class="kw">徽章墙</span></li>
+      </ul>
+    </div>
+    <div class="panel shadow-red">
+      <div class="panel-title"><span class="badge" style="background:var(--accent-red);color:#fff;">🎁</span>积分商城</div>
+      <ul style="font-size:14px; line-height:1.8; padding-left:18px;">
+        <li>商品兑换</li>
+        <li>盲盒抽奖</li>
+        <li><span class="kw-red">TCC 事务修复"扫码即扣"</span></li>
+      </ul>
+    </div>
+    <div class="panel shadow-purple">
+      <div class="panel-title"><span class="badge" style="background:var(--accent-purple);color:#fff;">⚙️</span>后台管理</div>
+      <ul style="font-size:14px; line-height:1.8; padding-left:18px;">
+        <li>积分管理 / 签到审核</li>
+        <li>活动 / 商品 / 二维码发布</li>
+        <li>多租户隔离</li>
+      </ul>
+    </div>
+    <div class="panel shadow-green">
+      <div class="panel-title"><span class="badge" style="background:var(--accent-green);">💬</span>钉钉深度集成</div>
+      <ul style="font-size:14px; line-height:1.8; padding-left:18px;">
+        <li>日程 / 通知 / 卡片</li>
+        <li>群机器人 / 审批</li>
+        <li>工作台卡片</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:24px; display:flex; gap:20px; align-items:center;">
+    <span class="shout">EVERYTHING IN DINGTALK</span>
+    <span style="font-size:16px;">→ 员工不用跳出钉钉，HR 不用打开 Excel，<span class="kw">一切运营在一个工作台完成</span></span>
+  </div>
+</section>
+
+<!-- ====== Slide 5 · 亮点 ①② 王牌 ====== -->
+<section class="slide" data-title="亮点①② 双王牌">
+  <span class="slide-tag red">CHAPTER 04 · 王牌亮点</span>
+  <h2 class="title">两张王牌 · 决定竞赛上限 🃏</h2>
+
+  <div class="grid-2" style="margin-top:20px; flex:1;">
+    <!-- ① HR-Agent -->
+    <div class="panel shadow-red" style="padding:22px; background:linear-gradient(160deg,#fff,#fff0f0);">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <span style="font-family:'Bangers'; font-size:54px; color:var(--accent-red); -webkit-text-stroke:2.5px var(--ink); line-height:1;">①</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:28px;">HR-Agent</div>
+          <small class="lab">自然语言一键运营 · 🤖 王牌</small>
+        </div>
+      </div>
+
+      <div class="bubble tail-bl" style="margin-top:10px; background:var(--accent-yellow); font-size:15px;">
+        "给销售部发一场月底冲刺活动，下周三 18:00，奖励 50 分，限 30 人，海报用<span class="kw-red">红色科技风</span>"
+      </div>
+
+      <div style="margin-top:24px;">
+        <div class="step"><span class="n">1</span><span class="txt">「活动创建」→ 写入 DB</span></div>
+        <div class="step"><span class="n">2</span><span class="txt">「钉钉日程」→ 给目标员工建日程</span></div>
+        <div class="step"><span class="n">3</span><span class="txt">「内容生成」→ 海报 + 钉钉群文案</span></div>
+        <div class="step"><span class="n">4</span><span class="txt">「互动卡片」→ 群内可点击报名</span></div>
+        <div class="step"><span class="n">5</span><span class="txt">「群机器人」→ 部门群播报</span></div>
+        <div class="step"><span class="n">6</span><span class="txt">返回执行报告 ✅</span></div>
+      </div>
+
+      <div style="margin-top:14px; padding:10px 14px; background:var(--ink); color:var(--paper); border-radius:8px; font-size:13px;">
+        <b>技术：</b> Claude / GPT Function Calling + <span style="color:var(--accent-yellow);">Go 自研 MCP 工具集</span>
+      </div>
+    </div>
+
+    <!-- ② MCP Server -->
+    <div class="panel shadow-blue" style="padding:22px; background:linear-gradient(160deg,#fff,#e8f4ff);">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <span style="font-family:'Bangers'; font-size:54px; color:var(--accent-blue); -webkit-text-stroke:2.5px var(--ink); line-height:1;">②</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:28px;">开放 API + MCP Server</div>
+          <small class="lab">🔌 技术深度爆点</small>
+        </div>
+      </div>
+
+      <p style="margin-top:8px; font-size:15px; line-height:1.7;">
+        把整个平台能力<span class="kw-red">全部 MCP 化</span>，让<b>任意 AI 客户端</b>都能调用！
+      </p>
+
+      <div class="grid-2" style="margin-top:12px; gap:10px;">
+        <div style="padding:10px 12px; background:#fff; border:2px solid var(--ink); border-radius:8px;">
+          <b style="color:var(--accent-blue);">REST OpenAPI</b><br/>
+          <small>标准 API + OAuth · 企业自有系统对接</small>
+        </div>
+        <div style="padding:10px 12px; background:var(--ink); color:var(--paper); border-radius:8px;">
+          <b style="color:var(--accent-yellow);">★ MCP Server</b><br/>
+          <small>完整工具集 · AI 客户端直接调用</small>
+        </div>
+      </div>
+
+      <div style="margin-top:14px; padding:12px; border:2.5px dashed var(--accent-red); border-radius:10px;">
+        <b style="font-family:'Bangers'; font-size:18px; color:var(--accent-red);">💥 DEMO 杀手锏</b>
+        <ol style="font-size:14px; padding-left:22px; margin-top:6px; line-height:1.7;">
+          <li>打开 <b>Claude Desktop</b></li>
+          <li>连接到我们的 <b>MCP Server</b></li>
+          <li>问："查本月销售部前 3 名，给第一名 +100 分，颁发<span class="kw">销售之星徽章</span>"</li>
+          <li>Claude 直接调用工具链完成 ✅</li>
+        </ol>
+      </div>
+
+      <div style="margin-top:10px; font-size:13px; color:#555;">
+        💡 <b>业务价值：</b>真正「AI 时代 ready」的中台
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Slide 6 · 亮点 ③ AI 内容生成 ====== -->
+<section class="slide" data-title="亮点③ AI 内容生成">
+  <span class="slide-tag pink">CHAPTER 05 · 亮点 ③</span>
+  <h2 class="title">AI 内容生成助手 ✍️</h2>
+  <p class="subtitle">一句话 → 全套素材 · HR 再也不用熬夜做海报</p>
+
+  <div style="margin-top:24px; display:flex; gap:20px; flex:1;">
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="panel shadow-pink">
+        <div class="panel-title"><span class="badge" style="background:var(--accent-pink);">📝</span>活动文案</div>
+        <p style="font-size:15px;">Claude / GPT 自动生成 → 多语气切换</p>
+        <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+          <span class="shout" style="font-size:13px; padding:2px 8px; transform:rotate(-2deg);">正式</span>
+          <span class="shout blue" style="font-size:13px; padding:2px 8px; transform:rotate(1deg);">活泼</span>
+          <span class="shout red" style="font-size:13px; padding:2px 8px; transform:rotate(-3deg);">紧急</span>
+        </div>
+      </div>
+
+      <div class="panel shadow-purple">
+        <div class="panel-title"><span class="badge" style="background:var(--accent-purple);color:#fff;">🎨</span>海报 + 奖品图</div>
+        <p style="font-size:15px;">通义万相 / SDXL · 一秒出图</p>
+      </div>
+
+      <div class="panel shadow-blue">
+        <div class="panel-title"><span class="badge" style="background:var(--accent-blue);color:#fff;">💬</span>钉钉推送话术</div>
+        <p style="font-size:15px;">个性化 + 触达率高的文案模板</p>
+      </div>
+
+      <div class="panel shadow-green">
+        <div class="panel-title"><span class="badge" style="background:var(--accent-green);">🔳</span>个性化签到二维码</div>
+        <p style="font-size:15px;">嵌入品牌元素 / 主题图案</p>
+      </div>
+    </div>
+
+    <!-- 流水线展示 -->
+    <div style="flex:1.2; position:relative;">
+      <div class="panel shadow-yellow" style="height:100%; padding:20px;">
+        <div class="panel-title"><span class="badge">🚀</span>一键发布流水线</div>
+
+        <div style="margin-top:20px; position:relative;">
+          <div style="display:flex; flex-direction:column; gap:18px;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="width:60px; height:60px; background:var(--accent-orange); border:3px solid var(--ink); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:30px; box-shadow:3px 3px 0 var(--ink);">💡</div>
+              <div>
+                <b style="font-size:18px;">输入一句话</b>
+                <div style="font-size:13px; color:#666;">HR 说"发个销售部冲刺活动"</div>
+              </div>
+            </div>
+
+            <div style="margin-left:30px; color:var(--accent-red); font-size:30px;">⬇</div>
+
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="width:60px; height:60px; background:var(--accent-blue); border:3px solid var(--ink); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:30px; box-shadow:3px 3px 0 var(--ink);">🤖</div>
+              <div>
+                <b style="font-size:18px;">AI 全套生成</b>
+                <div style="font-size:13px; color:#666;">文案 + 海报 + 话术 + 二维码</div>
+              </div>
+            </div>
+
+            <div style="margin-left:30px; color:var(--accent-red); font-size:30px;">⬇</div>
+
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="width:60px; height:60px; background:var(--accent-pink); border:3px solid var(--ink); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:30px; box-shadow:3px 3px 0 var(--ink);">👁️</div>
+              <div>
+                <b style="font-size:18px;">HR 一眼确认</b>
+                <div style="font-size:13px; color:#666;">不满意？继续说一句重生成</div>
+              </div>
+            </div>
+
+            <div style="margin-left:30px; color:var(--accent-red); font-size:30px;">⬇</div>
+
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="width:60px; height:60px; background:var(--accent-green); border:3px solid var(--ink); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:30px; box-shadow:3px 3px 0 var(--ink);">📢</div>
+              <div>
+                <b style="font-size:18px;">全渠道分发</b>
+                <div style="font-size:13px; color:#666;">钉钉群 + 个人卡片 + 工作台</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stamp" style="bottom:16px; right:20px;">EFFICIENT</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Slide 7 · 亮点 ④ 数据洞察 ====== -->
+<section class="slide" data-title="亮点④ AI 洞察">
+  <span class="slide-tag purple">CHAPTER 06 · 亮点 ④</span>
+  <h2 class="title">AI 文化数据洞察 Dashboard 📊</h2>
+  <p class="subtitle">🎯 给老板看的杀手锏 · 不只是图表，而是会"思考"的报告</p>
+
+  <div style="margin-top:24px; display:flex; gap:24px; flex:1;">
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <!-- 对话 1 -->
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="24" fill="var(--accent-orange)" stroke="#1a1a1a" stroke-width="2.5"/>
+          <circle cx="22" cy="24" r="3" fill="#1a1a1a"/>
+          <circle cx="34" cy="24" r="3" fill="#1a1a1a"/>
+          <path d="M 20 36 Q 28 32 36 36" stroke="#1a1a1a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        </svg>
+        <div class="bubble" style="flex:1; background:#fff;">
+          <span style="font-size:16px;">"为什么本月研发部参与度<span class="kw-red">下降 30%</span>？"</span>
+          <div style="font-size:11px; color:#999; margin-top:4px;">— HR 总监</div>
+        </div>
+      </div>
+
+      <!-- 对话 2 AI 回答 -->
+      <div style="display:flex; gap:12px; align-items:flex-start; flex-direction:row-reverse;">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <rect x="12" y="14" width="32" height="28" rx="6" fill="var(--accent-blue)" stroke="#1a1a1a" stroke-width="2.5"/>
+          <circle cx="22" cy="26" r="3" fill="var(--accent-yellow)"/>
+          <circle cx="34" cy="26" r="3" fill="var(--accent-yellow)"/>
+          <line x1="28" y1="14" x2="28" y2="8" stroke="#1a1a1a" stroke-width="2"/>
+          <circle cx="28" cy="6" r="2" fill="var(--accent-red)"/>
+        </svg>
+        <div class="bubble" style="flex:1; background:var(--accent-yellow);">
+          <div style="font-size:14px; line-height:1.7;">
+            研发部本月有 <b>2 场重大版本发布</b>（4/8、4/22），冲突活动 3 场。<br/>
+            <b>建议：</b>把活动调整到周三午餐时段，并联动技术分享主题。<br/>
+            <b>预测参与率可回升至 <span class="kw-red">65%</span>。</b>
+          </div>
+          <div style="font-size:11px; color:#666; margin-top:4px; text-align:right;">— 洞察 Agent</div>
+        </div>
+      </div>
+
+      <div class="panel shadow-blue" style="margin-top:6px;">
+        <div class="panel-title" style="font-size:18px;"><span class="badge">🔬</span>技术管道</div>
+        <div style="font-size:14px; color:#555; line-height:1.8;">
+          业务数据 → <b>SQL Agent</b> → 归因分析 → 策略推荐<br/>
+          <small style="color:#888;">RAG 历史活动效果库 · 用历史经验做未来预测</small>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="panel shadow-purple">
+        <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-purple);color:#fff;">📈</span>核心指标看板</div>
+        <div class="grid-2 mt-sm" style="gap:10px;">
+          <div style="text-align:center; padding:10px; background:#fff8e8; border:2px solid var(--ink); border-radius:10px;">
+            <div class="num-big">87.2</div>
+            <div class="num-lbl">文化指数</div>
+          </div>
+          <div style="text-align:center; padding:10px; background:#e8f4ff; border:2px solid var(--ink); border-radius:10px;">
+            <div class="num-big" style="color:var(--accent-blue);">68%</div>
+            <div class="num-lbl">参与率</div>
+          </div>
+          <div style="text-align:center; padding:10px; background:#ffe8f0; border:2px solid var(--ink); border-radius:10px;">
+            <div class="num-big" style="color:var(--accent-pink);">42</div>
+            <div class="num-lbl">本月活动数</div>
+          </div>
+          <div style="text-align:center; padding:10px; background:#e8fff0; border:2px solid var(--ink); border-radius:10px;">
+            <div class="num-big" style="color:var(--accent-green);">↑12%</div>
+            <div class="num-lbl">环比增长</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel shadow-yellow" style="flex:1;">
+        <div class="panel-title" style="font-size:18px;"><span class="badge">🎁</span>价值点</div>
+        <ul style="font-size:14px; line-height:1.9; padding-left:18px;">
+          <li>不是 BI，而是<b>主动归因</b> + <b>主动建议</b></li>
+          <li>问答式驱动，HR 总监零学习成本</li>
+          <li>结果可<b>一键转化</b>为下一场活动</li>
+          <li>历史活动 RAG 库越用越准</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Slide 8 · 亮点 ⑤⑥⑦ ====== -->
+<section class="slide" data-title="亮点⑤⑥⑦">
+  <span class="slide-tag orange">CHAPTER 07 · 更多亮点</span>
+  <h2 class="title">三大锦上添花 · 让 Demo 张力拉满</h2>
+
+  <div class="grid-3" style="margin-top:24px; flex:1; gap:18px;">
+
+    <!-- ⑤ 盲盒主持 -->
+    <div class="panel shadow-pink" style="padding:20px; background:linear-gradient(160deg,#fff,#ffeef5);">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <span style="font-family:'Bangers'; font-size:40px; color:var(--accent-pink); -webkit-text-stroke:2px var(--ink); line-height:1;">⑤</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:22px;">盲盒 AI 主持人</div>
+          <small class="lab">🎁 现场演示张力</small>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin:10px 0;">
+        <!-- Live2D 风格头像 -->
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <ellipse cx="60" cy="55" rx="38" ry="40" fill="#ffd4e5" stroke="#1a1a1a" stroke-width="2.5"/>
+          <ellipse cx="60" cy="60" rx="28" ry="32" fill="#fff4e8" stroke="#1a1a1a" stroke-width="2.5"/>
+          <path d="M 30 50 Q 32 30 60 28 Q 88 30 90 50 Q 78 45 60 50 Q 42 45 30 50 Z" fill="#ffd4e5" stroke="#1a1a1a" stroke-width="2.5"/>
+          <ellipse cx="50" cy="62" rx="5" ry="7" fill="#1a1a1a"/>
+          <ellipse cx="70" cy="62" rx="5" ry="7" fill="#1a1a1a"/>
+          <circle cx="52" cy="60" r="2" fill="#fff"/>
+          <circle cx="72" cy="60" r="2" fill="#fff"/>
+          <path d="M 54 78 Q 60 84 66 78" stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <!-- 麦克风 -->
+          <circle cx="90" cy="85" r="8" fill="var(--accent-red)" stroke="#1a1a1a" stroke-width="2"/>
+          <rect x="87" y="93" width="6" height="14" fill="#1a1a1a"/>
+        </svg>
+      </div>
+
+      <div class="bubble" style="font-size:13px; padding:10px 14px;">
+        "恭喜你！这是本周第 3 个抽到<br/><b>星巴克卡</b>的同学～"<br/>
+        "差一点点就是 iPad 啦！要不要再来一次？"
+      </div>
+
+      <div style="margin-top:12px; font-size:13px;">
+        <b>技术：</b> TTS（火山 / Edge）<br/>+ Live2D + LLM 实时文案
+      </div>
+    </div>
+
+    <!-- ⑥ 跨企业指数榜 -->
+    <div class="panel shadow-blue" style="padding:20px; background:linear-gradient(160deg,#fff,#e8f4ff);">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <span style="font-family:'Bangers'; font-size:40px; color:var(--accent-blue); -webkit-text-stroke:2px var(--ink); line-height:1;">⑥</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:22px;">跨企业文化指数榜</div>
+          <small class="lab">🌐 SaaS 想象空间</small>
+        </div>
+      </div>
+
+      <div style="background:#fff; border:2px solid var(--ink); border-radius:8px; padding:8px; margin-top:10px;">
+        <div style="font-size:12px; color:#666; margin-bottom:4px;">🏆 互联网赛道 · 本月</div>
+        <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:13px;"><span>🥇 互联网 A 厂</span><b>91.2</b></div>
+        <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:13px;"><span>🥈 互联网 B 厂</span><b>89.5</b></div>
+        <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:13px; background:var(--accent-yellow);"><span>🥉 <b>我司</b></span><b>87.2</b></div>
+        <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:13px;"><span>4. 互联网 D 厂</span><b>82.1</b></div>
+      </div>
+
+      <ul style="margin-top:10px; font-size:13px; line-height:1.7; padding-left:16px;">
+        <li>opt-in 自愿加入</li>
+        <li>公开榜<b>匿名代号</b></li>
+        <li>HR 内部可看自家排名</li>
+      </ul>
+
+      <div style="margin-top:10px; padding:6px 10px; background:var(--ink); color:var(--paper); border-radius:6px; font-size:12px;">
+        Phase 1 演示 → Phase 2 合作 → Phase 3 行业基础设施
+      </div>
+    </div>
+
+    <!-- ⑦ 反作弊 -->
+    <div class="panel shadow-purple" style="padding:20px; background:linear-gradient(160deg,#fff,#f5e8ff);">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <span style="font-family:'Bangers'; font-size:40px; color:var(--accent-purple); -webkit-text-stroke:2px var(--ink); line-height:1;">⑦</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:22px;">AI 反作弊检测</div>
+          <small class="lab">🛡️ 守门员</small>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <div style="background:#fff; border:2px dashed var(--accent-red); border-radius:8px; padding:10px;">
+          <div style="font-size:12px; color:var(--accent-red); font-weight:bold;">⚠️ 异常预警</div>
+          <div style="font-size:13px; margin-top:4px;">同 IP 多次扫码：销售部 5 次</div>
+          <div style="font-size:13px;">部门积分异常膨胀：+200%</div>
+          <div style="font-size:13px;">兑换频次异常：3min/次</div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px; font-size:13px;">
+        <b>实时监测 + 孤立森林算法</b><br/>
+        + LLM 解释 → 自动生成预警工单<br/>
+        → HR 一键审核处置
+      </div>
+
+      <div class="stamp" style="position:relative; display:inline-block; margin-top:10px; transform:rotate(-8deg);">
+        REAL-TIME
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:20px; padding:14px 20px; background:var(--ink); color:var(--paper); border-radius:12px; font-size:15px; display:flex; align-items:center; gap:14px;">
+    <span class="shout" style="font-size:18px;">5 大 AI 模块</span>
+    <span>HR-Agent · 内容生成 · 数据洞察 · 盲盒主持 · 反作弊 → <span style="color:var(--accent-yellow);"><b>AI 浓度拉满</b></span></span>
+  </div>
+</section>
+
+<!-- ====== Slide 9 · 钉钉深度集成 ====== -->
+<section class="slide" data-title="钉钉深度集成">
+  <span class="slide-tag green">CHAPTER 08 · 钉钉集成</span>
+  <h2 class="title">钉钉深度集成 · 已核验边界 ✅</h2>
+  <p class="subtitle">不靠想象，靠官方文档 · 该用什么、不该用什么、怎么省 API 配额，一清二楚</p>
+
+  <div style="margin-top:20px; display:flex; gap:20px; flex:1;">
+    <div style="flex:1.5;">
+      <table class="comic">
+        <thead>
+          <tr><th style="width:25%;">✅ 实施清单</th><th>用法</th><th style="width:25%;">钉钉 API</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="tag">活动日程</td><td>自动建日程邀请员工，<b>接受=报名意向</b></td><td>日历 API</td></tr>
+          <tr><td class="tag">互动卡片</td><td>群内/个人可点击报名卡片</td><td>互动卡片 + 回调</td></tr>
+          <tr><td class="tag">工作通知</td><td>个人级活动/中奖/积分通知</td><td>asyncsend_v2</td></tr>
+          <tr><td class="tag">群机器人</td><td>部门群周播报、月报、获奖</td><td>自定义机器人 webhook</td></tr>
+          <tr><td class="tag">OA 审批</td><td>积分异议、大额调整走标准流</td><td>审批流 API</td></tr>
+          <tr><td class="tag">工作台卡片</td><td>钉钉首页"我的积分"一屏直达</td><td>自定义工作台</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+
+      <div class="panel shadow-orange" style="background:#fff8e8;">
+        <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-orange);">⚠️</span>谨慎使用</div>
+        <p style="font-size:14px; line-height:1.7;">
+          <b>DING 强提醒：</b>仅企业自建+专业版有配额。<br/>
+          <span class="kw">只用于关键事件</span>（中奖通知、异议结果）
+        </p>
+      </div>
+
+      <div class="panel shadow-red" style="background:#fff0f0;">
+        <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-red);color:#fff;">❌</span>不依赖钉钉</div>
+        <p style="font-size:14px; line-height:1.7;">
+          <b>签到模块自研：</b>钉钉考勤 API 只读 → <br/>
+          自建 H5 + 二维码动态刷新 + GPS / WiFi 围栏 + <span class="kw-red">防代签随机校验</span>
+        </p>
+      </div>
+
+      <div class="panel shadow-blue" style="background:#e8f4ff;">
+        <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-blue);color:#fff;">💰</span>配额预算</div>
+        <p style="font-size:14px; line-height:1.7;">
+          按 <b>钉钉专业版（50 万 API/月）</b> 设计。<br/>
+          标准版（1 万/月）几天就爆。<br/>
+          <span style="color:#666; font-size:12px;">→ 客户落地前需升级一次</span>
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="margin-top:18px; display:flex; gap:14px; align-items:center;">
+    <span class="shout red" style="font-size:20px;">工程严谨度</span>
+    <span style="font-size:15px;">不画大饼，对配额、API 限制、防作弊缺陷<b>主动坦白</b> → 反而是评委加分项</span>
+  </div>
+</section>
+
+<!-- ====== Slide 10 · 业务流程图 ====== -->
+<section class="slide" data-title="业务流程图">
+  <span class="slide-tag blue">CHAPTER 09 · 流程</span>
+  <h2 class="title">关键业务流程：活动报名 → 签到 → 加分</h2>
+  <p class="subtitle">日程 + 自研签到 + 钉钉通知 三角协同</p>
+
+  <div class="diagram" style="margin-top:20px;">
+    <div class="mermaid">
+flowchart TD
+    A[HR 在后台对 Agent 说<br/>给销售部发月底冲刺活动] --> B[Agent 编排执行]
+    B --> C[建活动 DB 记录]
+    B --> D[钉钉日历 API<br/>给员工建日程]
+    B --> E[钉钉群机器人播报]
+    B --> F[互动卡片个人推送]
+
+    D --> G{员工日程响应}
+    F --> G
+    G -->|接受| H[标记报名]
+    G -->|拒绝| I[标记弃权]
+    G -->|未响应| J[活动前 1h 卡片再催]
+    J --> G
+
+    H --> K[活动当日<br/>员工到场扫二维码]
+    K --> L[自研签到服务校验<br/>GPS+二维码+随机题]
+    L -->|通过| M[积分服务加分]
+    L -->|失败| N[标记异常待审]
+
+    M --> O{是否触发成就}
+    O -->|是| P[徽章服务颁发徽章]
+    O -->|否| Q[流程结束]
+    P --> R[钉钉卡片通知<br/>徽章入墙]
+
+    style A fill:#ffd93d,stroke:#1a1a1a,stroke-width:3px
+    style L fill:#6dd5a3,stroke:#1a1a1a,stroke-width:3px
+    style B fill:#ff7eb3,stroke:#1a1a1a,stroke-width:2px
+    style P fill:#a55eea,stroke:#1a1a1a,stroke-width:2px,color:#fff
+    </div>
+  </div>
+</section>
+
+<!-- ====== Slide 11 · 架构图 ====== -->
+<section class="slide" data-title="整体架构">
+  <span class="slide-tag purple">CHAPTER 10 · 架构</span>
+  <h2 class="title">整体架构图 · 七层骨架</h2>
+  <p class="subtitle">★ MCP Server / HR-Agent / 自研签到 = 核心三发动机</p>
+
+  <div class="diagram" style="margin-top:18px;">
+    <div class="mermaid">
+graph TB
+    subgraph 接入层
+        DT[钉钉工作台/H5]
+        BG[HR 后台]
+        EXT[外部 AI 客户端<br/>Claude Desktop / ChatGPT / Cursor]
+    end
+
+    subgraph 开放层
+        REST[REST OpenAPI]
+        MCPSRV[★ MCP Server · 对外能力开放]
+    end
+
+    subgraph AI智能体层
+        AGENT[HR-Agent 编排器]
+        TOOLS[工具集: 活动/商品/数据/徽章/钉钉]
+        GEN[内容生成]
+        INSIGHT[洞察 Agent]
+        ANTI[反作弊 Agent]
+    end
+
+    subgraph 应用层
+        ACT[活动服务]
+        MALL[商城/盲盒服务]
+        POINT[积分服务 · TCC 事务]
+        SIGN[★ 自研签到服务<br/>H5+二维码+GPS]
+        ACHV[成就/徽章服务]
+    end
+
+    subgraph 钉钉集成层
+        CAL[日程]
+        CARD[互动卡片]
+        MSG[工作通知]
+        BOT[群机器人]
+        OA[审批]
+        DESK[工作台卡片]
+    end
+
+    subgraph 多租户与跨企业
+        TENANT[租户隔离]
+        CROSS[跨企业指数计算]
+    end
+
+    subgraph 模型层
+        LLM[Claude/GPT/DeepSeek]
+        IMG[通义万相/SDXL]
+        TTS[TTS 语音]
+    end
+
+    subgraph 数据层
+        MYSQL[(MySQL · 多租户)]
+        REDIS[(Redis · TCC 冻结)]
+        OSS[(OSS · 图片)]
+    end
+
+    DT --> ACT & MALL & SIGN
+    BG --> AGENT
+    EXT --> MCPSRV & REST
+    MCPSRV --> AGENT
+    REST --> ACT & MALL & POINT
+
+    AGENT --> TOOLS & GEN & LLM
+    TOOLS --> ACT & MALL & ACHV
+    TOOLS --> CAL & CARD & MSG & BOT & OA & DESK
+    GEN --> IMG
+    INSIGHT --> LLM & MYSQL
+    ANTI --> MYSQL
+
+    ACT --> CAL & CARD & BOT
+    SIGN --> POINT
+    POINT --> ACHV
+    POINT --> REDIS
+    ACT & MALL --> MYSQL
+    MYSQL --> TENANT --> CROSS
+    SIGN --> OSS
+    BG --> TTS
+
+    style MCPSRV fill:#ffd93d,stroke:#1a1a1a,stroke-width:3px
+    style AGENT fill:#ffd93d,stroke:#1a1a1a,stroke-width:3px
+    style SIGN fill:#6dd5a3,stroke:#1a1a1a,stroke-width:3px
+    style CROSS fill:#4facfe,stroke:#1a1a1a,stroke-width:2px,color:#fff
+    </div>
+  </div>
+</section>
+
+<!-- ====== Slide 12 · 技术选型 ====== -->
+<section class="slide" data-title="技术选型">
+  <span class="slide-tag orange">CHAPTER 11 · 技术栈</span>
+  <h2 class="title">技术选型（Go 版） 🛠️</h2>
+  <p class="subtitle">每个选择都有"为什么"·不堆砌、不跟风</p>
+
+  <div class="grid-4" style="margin-top:24px; gap:14px;">
+    <div class="card">
+      <div class="ic">🌐</div>
+      <div class="tt">Gin</div>
+      <p class="dd"><small style="color:#999;">Web 框架</small><br/>生态成熟、性能高、上手快</p>
+    </div>
+    <div class="card">
+      <div class="ic">🗄️</div>
+      <div class="tt">GORM + sqlx</div>
+      <p class="dd"><small style="color:#999;">ORM</small><br/>Go 标准选择</p>
+    </div>
+    <div class="card hi">
+      <div class="ic">🧠</div>
+      <div class="tt">Claude 4.6 + DeepSeek V3</div>
+      <p class="dd"><small style="color:#666;">LLM</small><br/>Function Calling 强 + 降本</p>
+    </div>
+    <div class="card hi3">
+      <div class="ic">⚡</div>
+      <div class="tt" style="color:#fff;">MCP Server 自研</div>
+      <p class="dd" style="color:#fff;"><small style="color:#fff;">JSON-RPC over SSE</small><br/>官方 Go SDK 不稳，自研刚好亮点</p>
+    </div>
+
+    <div class="card">
+      <div class="ic">🎨</div>
+      <div class="tt">通义万相 / SD-XL</div>
+      <p class="dd"><small style="color:#999;">图像</small><br/>国内可用、API 简单</p>
+    </div>
+    <div class="card">
+      <div class="ic">🔊</div>
+      <div class="tt">火山 / Edge-TTS</div>
+      <p class="dd"><small style="color:#999;">TTS</small><br/>中文好、低成本</p>
+    </div>
+    <div class="card">
+      <div class="ic">📲</div>
+      <div class="tt">alibabacloud-go/dingtalk</div>
+      <p class="dd"><small style="color:#999;">钉钉 SDK</small><br/>钉钉官方维护</p>
+    </div>
+    <div class="card hi2">
+      <div class="ic">📍</div>
+      <div class="tt">签到自研</div>
+      <p class="dd"><small style="color:#666;">H5+二维码+GPS</small><br/>钉钉考勤 API 只读</p>
+    </div>
+
+    <div class="card">
+      <div class="ic">⚙️</div>
+      <div class="tt">asynq</div>
+      <p class="dd"><small style="color:#999;">任务队列</small><br/>基于 Redis、Go 主流</p>
+    </div>
+    <div class="card">
+      <div class="ic">🏢</div>
+      <div class="tt">共享库 + tenant_id</div>
+      <p class="dd"><small style="color:#999;">多租户</small><br/>演示足够，工程简洁</p>
+    </div>
+    <div class="card">
+      <div class="ic">📦</div>
+      <div class="tt">静态二进制 + Docker</div>
+      <p class="dd"><small style="color:#999;">部署</small><br/>镜像小、启动快</p>
+    </div>
+    <div class="card hi">
+      <div class="ic">💡</div>
+      <div class="tt">HTTP 直连 LLM</div>
+      <p class="dd"><small style="color:#666;">LLM SDK</small><br/>Anthropic 无官方 Go SDK，自封装很轻</p>
+    </div>
+  </div>
+
+  <div style="margin-top:20px; padding:14px 20px; background:linear-gradient(90deg,#fff8e8,#fff); border:3px solid var(--ink); border-radius:12px; box-shadow:5px 5px 0 var(--ink); display:flex; gap:20px; align-items:center;">
+    <span class="shout">Go FIRST</span>
+    <span style="font-size:15px;">前版 PHP/Hyperf → 本版 <b>Go (Gin)</b>，节省 3 天用于钉钉集成 + 数据洞察 + 跨企业打磨</span>
+  </div>
+</section>
+
+<!-- ====== Slide 13 · 排期 Gantt ====== -->
+<section class="slide" data-title="里程碑排期">
+  <span class="slide-tag red">CHAPTER 12 · 排期</span>
+  <h2 class="title">4 周冲刺排期 · 责任到天</h2>
+  <p class="subtitle">必保模块 + 可砍模块 已明确标注</p>
+
+  <div class="diagram" style="margin-top:20px;">
+    <div class="mermaid">
+gantt
+    title 黑客马拉松开发排期
+    dateFormat YYYY-MM-DD
+    section 第1周 基础盘
+    Go 项目骨架+多租户+权限   :a1, 2026-05-22, 2d
+    积分/活动/商品 CRUD       :a2, after a1, 3d
+    自研签到模块              :a3, after a1, 4d
+    section 第2周 核心AI+开放
+    HR-Agent + MCP 工具集     :b1, 2026-05-29, 4d
+    对外 MCP Server + REST    :b2, after b1, 3d
+    section 第3周 集成+洞察
+    钉钉深度集成              :c1, 2026-06-05, 4d
+    数据洞察 Dashboard        :c2, after c1, 3d
+    跨企业指数榜              :c3, after c2, 3d
+    section 第4周 收尾
+    钉钉工作台卡片            :d1, 2026-06-12, 2d
+    盲盒 AI 主持 + 反作弊     :d2, after d1, 3d
+    Demo 录制 + 路演彩排      :d3, after d2, 2d
+    </div>
+  </div>
+
+  <div style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+    <div class="panel shadow-green">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-green);">✅</span>必保</div>
+      <p style="font-size:14px; line-height:1.8;">
+        ① HR-Agent · ② 开放 MCP · ⑤ 盲盒主持<br/>
+        + 自研签到 + 钉钉日程/群机器人/卡片
+      </p>
+    </div>
+    <div class="panel shadow-orange">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-orange);">⏰</span>时间不够可砍</div>
+      <p style="font-size:14px; line-height:1.8;">
+        ⑦ 反作弊 → ⑥ 跨企业（保留 1 虚拟对手即可）
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Slide 14 · 竞赛亮点 ====== -->
+<section class="slide" data-title="竞赛亮点">
+  <span class="slide-tag pink">CHAPTER 13 · 竞赛对标</span>
+  <h2 class="title">评委一页纸 · 8 大评分维度全打满 🏆</h2>
+
+  <div style="margin-top:18px; flex:1;">
+    <table class="comic">
+      <thead>
+        <tr><th style="width:18%;">评分维度</th><th>我们的亮点</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tag" style="color:var(--accent-red);">🚀 创新性</td>
+          <td>国内首个 <b>MCP Agent 协议</b> 在企业内部场景落地</td>
+        </tr>
+        <tr>
+          <td class="tag" style="color:var(--accent-orange);">🤖 AI 浓度</td>
+          <td>HR-Agent / 内容生成 / 数据洞察 / 反作弊 / 盲盒主持 = <b>5 大 AI 模块</b></td>
+        </tr>
+        <tr>
+          <td class="tag" style="color:var(--accent-blue);">🔬 技术深度</td>
+          <td>MCP 协议自研 Server（Go）+ 多 Agent 编排 + 多租户 + <b>TCC 事务</b></td>
+        </tr>
+        <tr>
+          <td class="tag" style="color:var(--accent-purple);">🌐 生态价值</td>
+          <td>MCP 把系统能力开放给 <b>Claude / ChatGPT 等任意 AI 客户端</b></td>
+        </tr>
+        <tr>
+          <td class="tag" style="color:var(--accent-pink);">💎 商业想象</td>
+          <td>跨企业指数榜 → SaaS → <b>中国企业文化数据平台</b></td>
+        </tr>
+        <tr>
+          <td class="tag" style="color:var(--accent-green);">🛠️ 工程严谨</td>
+          <td>已核验钉钉 API 边界、明确专业版预算、签到自建不强行集成</td>
+        </tr>
+        <tr>
+          <td class="tag" style="color:var(--ink);">🎬 可演示</td>
+          <td><b>Claude Desktop 调用 + AI 语音主持</b>，Demo 张力拉满</td>
+        </tr>
+        <tr>
+          <td class="tag" style="color:var(--accent-orange);">📦 可落地</td>
+          <td>已对接钉钉、4 周可交付，<b>单二进制部署即装即用</b></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:18px; display:flex; gap:14px; align-items:center; justify-content:center;">
+    <span class="shout">CREATIVITY × DEPTH × SHOWMANSHIP</span>
+  </div>
+</section>
+
+<!-- ====== Slide 15 · Demo 脚本 ====== -->
+<section class="slide" data-title="Demo 脚本">
+  <span class="slide-tag blue">CHAPTER 14 · DEMO</span>
+  <h2 class="title">Demo 演示脚本 · 5 分钟版 🎬</h2>
+  <p class="subtitle">每一秒都被设计过 · 让评委的手机现场震一下</p>
+
+  <div class="timeline" style="margin-top:24px; flex:1;">
+    <div class="tl-item">
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="background:var(--ink); color:var(--paper); padding:4px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0;">0:00 - 0:30</div>
+        <div>
+          <b style="font-size:17px;">①开场</b>
+          <p style="font-size:14px; color:#555; margin-top:2px;">Excel 痛点截图（图一图二）→ 问题引出</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="background:var(--accent-orange); color:#fff; padding:4px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">0:30 - 1:30</div>
+        <div>
+          <b style="font-size:17px;">②HR-Agent</b>
+          <p style="font-size:14px; color:#555; margin-top:2px;">HR 说"发个销售部冲刺活动" → Agent 自动建活动+建钉钉日程+发互动卡片+群机器人播报 → <span class="kw-red">评委手机现场收到钉钉推送</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="background:var(--accent-red); color:#fff; padding:4px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">1:30 - 2:45</div>
+        <div>
+          <b style="font-size:17px;">★ ③开放 MCP（最高潮）</b>
+          <p style="font-size:14px; color:#555; margin-top:2px;"><b>打开 Claude Desktop → 连我们的 MCP Server → "查本月前 3 名，给第一加 100 分并颁发『销售之星』徽章"</b> → Claude 直接执行</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="background:var(--accent-green); color:#1a1a1a; padding:4px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">2:45 - 3:30</div>
+        <div>
+          <b style="font-size:17px;">④签到 + 加分</b>
+          <p style="font-size:14px; color:#555; margin-top:2px;">员工扫二维码 → 自研签到校验通过 → 积分入账 + 触发成就徽章</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="background:var(--accent-pink); color:#fff; padding:4px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">3:30 - 4:30</div>
+        <div>
+          <b style="font-size:17px;">⑤盲盒抽奖</b>
+          <p style="font-size:14px; color:#555; margin-top:2px;">扫码抽奖 → AI 主持人语音互动 → 中奖（Live2D 形象上场）</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="background:var(--accent-purple); color:#fff; padding:4px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">4:30 - 5:30</div>
+        <div>
+          <b style="font-size:17px;">⑥洞察 + 跨企业榜</b>
+          <p style="font-size:14px; color:#555; margin-top:2px;">问"为什么参与度下降" → AI 归因 + 看「我司在互联网公司排第 3」</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div style="background:var(--ink); color:var(--paper); padding:4px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0;">5:30 - 5:45</div>
+        <div>
+          <b style="font-size:17px;">⑦收官</b>
+          <p style="font-size:14px; color:#555; margin-top:2px;">架构图 + 三大叙事金句 → 鞠躬</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Slide 16 · 风险与应对 ====== -->
+<section class="slide" data-title="风险与应对">
+  <span class="slide-tag orange">CHAPTER 15 · 风险管理</span>
+  <h2 class="title">六大风险 · 早识别 · 已有方案</h2>
+  <p class="subtitle">坦诚 > 完美 · 路演时主动提，反而是加分项</p>
+
+  <div class="grid-2" style="margin-top:24px; flex:1;">
+    <div class="panel shadow-red">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-red);color:#fff;">⚡</span>钉钉专业版升级</div>
+      <p style="font-size:14px; line-height:1.7; color:#555;">
+        <b>风险：</b>标准版配额几天就爆<br/>
+        <b>应对：</b>路演坦诚说明，强调<span class="kw">"工程严谨度"</span>反而加分
+      </p>
+    </div>
+
+    <div class="panel shadow-blue">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-blue);color:#fff;">🔌</span>MCP 客户端兼容</div>
+      <p style="font-size:14px; line-height:1.7; color:#555;">
+        <b>风险：</b>Claude Desktop 版本差异<br/>
+        <b>应对：</b>Demo 当天用已知稳定版本，<b>预录备份</b>
+      </p>
+    </div>
+
+    <div class="panel shadow-orange">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-orange);">📍</span>签到防作弊</div>
+      <p style="font-size:14px; line-height:1.7; color:#555;">
+        <b>风险：</b>自研防作弊不完美<br/>
+        <b>应对：</b>演示用 GPS+二维码足够，路演不深究细节
+      </p>
+    </div>
+
+    <div class="panel shadow-purple">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-purple);color:#fff;">🌐</span>跨企业冷启动</div>
+      <p style="font-size:14px; line-height:1.7; color:#555;">
+        <b>风险：</b>没有真实合作企业数据<br/>
+        <b>应对：</b>内置 <b>3 家虚拟对手</b>企业，演示足够
+      </p>
+    </div>
+
+    <div class="panel shadow-pink">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-pink);color:#fff;">🧠</span>LLM API 不稳定</div>
+      <p style="font-size:14px; line-height:1.7; color:#555;">
+        <b>风险：</b>路演现场调用超时<br/>
+        <b>应对：</b>主用 Claude，备 DeepSeek，关键 Demo <b>预录视频</b>
+      </p>
+    </div>
+
+    <div class="panel shadow-green">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--accent-green);">💎</span>Go MCP SDK 不成熟</div>
+      <p style="font-size:14px; line-height:1.7; color:#555;">
+        <b>风险：</b>没有现成轮子<br/>
+        <b>应对：</b>自研轻量 JSON-RPC 实现 → <span class="kw-red">反而成为技术亮点</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Slide 17 · 三大金句 ====== -->
+<section class="slide" data-title="三大金句">
+  <span class="slide-tag red">CHAPTER 16 · 金句</span>
+  <h2 class="title">三大叙事金句 · 路演反复强调 🎤</h2>
+
+  <div class="deco-star" style="top:80px; right:60px; font-size:70px;">★</div>
+  <div class="deco-lines" style="left:30px; bottom:200px; transform:rotate(15deg);"></div>
+
+  <div style="margin-top:30px; display:flex; flex-direction:column; gap:30px; flex:1; justify-content:center; align-items:center;">
+
+    <div style="display:flex; align-items:flex-start; gap:20px; max-width:1000px;">
+      <div style="font-family:'Bangers'; font-size:80px; color:var(--accent-red); -webkit-text-stroke:3px var(--ink); flex-shrink:0; line-height:1;">①</div>
+      <div class="panel shadow-red" style="background:#fff;">
+        <div class="quote">
+          我们不是把 Excel 搬上线，<br/>
+          而是把企业文化变成<br/>
+          <span style="color:var(--accent-red);">可被任意 AI 操控的中台</span>。
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:flex-start; gap:20px; max-width:1000px;">
+      <div style="font-family:'Bangers'; font-size:80px; color:var(--accent-blue); -webkit-text-stroke:3px var(--ink); flex-shrink:0; line-height:1;">②</div>
+      <div class="panel shadow-blue" style="background:#fff;">
+        <div class="quote">
+          <span style="color:var(--accent-blue);">HR 一句话</span>，<br/>
+          钉钉里全套自动跑完。
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:flex-start; gap:20px; max-width:1000px;">
+      <div style="font-family:'Bangers'; font-size:80px; color:var(--accent-orange); -webkit-text-stroke:3px var(--ink); flex-shrink:0; line-height:1;">③</div>
+      <div class="panel shadow-orange" style="background:#fff;">
+        <div class="quote">
+          今天是<span style="color:var(--accent-orange);">一个企业的工具</span>，<br/>
+          明天是<span style="color:var(--accent-orange);">整个行业的基础设施</span>。
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ====== Slide 18 · 锦上添花 ====== -->
+<section class="slide" data-title="可选锦上添花">
+  <span class="slide-tag green">CHAPTER 17 · 可选</span>
+  <h2 class="title">还有时间 · 锦上添花清单 🎁</h2>
+  <p class="subtitle">主菜吃饱后的甜点 · 量力而行</p>
+
+  <div class="grid-3" style="margin-top:30px; gap:20px; flex:1;">
+    <div class="card hi">
+      <div class="ic">🎙️</div>
+      <div class="tt">钉钉语音指令</div>
+      <p class="dd">直接对着钉钉说话下达 HR-Agent 指令</p>
+    </div>
+    <div class="card">
+      <div class="ic">📜</div>
+      <div class="tt">年度数字文化报告</div>
+      <p class="dd">自动生成 PDF · 一键导出</p>
+    </div>
+    <div class="card">
+      <div class="ic">📺</div>
+      <div class="tt">钉钉直播观看加分</div>
+      <p class="dd">大型全员会场景 · 观看时长自动入账</p>
+    </div>
+    <div class="card">
+      <div class="ic">📄</div>
+      <div class="tt">钉钉文档归档</div>
+      <p class="dd">活动总结自动归档到企业知识库</p>
+    </div>
+    <div class="card hi2">
+      <div class="ic">🎯</div>
+      <div class="tt">员工文化护照</div>
+      <p class="dd">成就墙可分享朋友圈 / 简历</p>
+    </div>
+    <div class="card hi3">
+      <div class="ic">🏅</div>
+      <div class="tt">徽章 NFT-Lite</div>
+      <p class="dd">仅 DB 存储不上链 · 极简数字勋章</p>
+    </div>
+  </div>
+
+  <div style="margin-top:30px; display:flex; gap:14px; align-items:center; padding:14px 20px; background:linear-gradient(90deg, #fff5d6, #fff); border:3px dashed var(--ink); border-radius:12px;">
+    <span style="font-size:30px;">⚠️</span>
+    <span style="font-size:15px;"><b>原则：</b>主菜（① ② ⑤ + 签到 + 钉钉）<span class="kw">绝不让位</span>给甜点。时间不够，甜点全砍。</span>
+  </div>
+</section>
+
+<!-- ====== Slide 19 · 版本演进 ====== -->
+<section class="slide" data-title="版本演进">
+  <span class="slide-tag purple">CHAPTER 18 · 演进</span>
+  <h2 class="title">版本演进记录 · 从 v1 到 v4 📜</h2>
+  <p class="subtitle">每一版都在做减法 · 越来越聚焦</p>
+
+  <div style="margin-top:24px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; flex:1;">
+
+    <div class="panel shadow-pink">
+      <div style="display:inline-block; background:var(--accent-pink); color:#fff; padding:4px 12px; font-family:'Bangers'; border-radius:6px; margin-bottom:10px;">v1 → v2</div>
+      <p style="font-size:14px; line-height:1.8;">
+        <b style="color:var(--accent-green);">➕ 新增</b><br/>
+        · 开放 API + MCP Server<br/>
+        · 跨企业排行榜<br/>
+        · 文化 NFT 数字勋章<br/>
+        <br/>
+        <b style="color:var(--accent-red);">➖ 移除</b><br/>
+        · AI 视觉签到防作弊<br/>
+        · AI 个性化推荐引擎<br/>
+        · 企业文化数字分身
+      </p>
+    </div>
+
+    <div class="panel shadow-blue">
+      <div style="display:inline-block; background:var(--accent-blue); color:#fff; padding:4px 12px; font-family:'Bangers'; border-radius:6px; margin-bottom:10px;">v2 → v3</div>
+      <p style="font-size:14px; line-height:1.8;">
+        <b style="color:var(--accent-green);">➕ 新增</b><br/>
+        · 钉钉深度集成模块<br/>
+        &nbsp;&nbsp;（日程、卡片、通知、<br/>
+        &nbsp;&nbsp;&nbsp;群机器人、审批、工作台）<br/>
+        <br/>
+        <b style="color:var(--accent-orange);">🛠 修正</b><br/>
+        · 钉钉签到 → <b>自研签到</b><br/>
+        · 视频会议 → 仅用日程<br/>
+        · 明确专业版预算<br/>
+        <br/>
+        <b style="color:var(--accent-purple);">📊 强化</b><br/>
+        · 业务流程图（日程+签到协同）
+      </p>
+    </div>
+
+    <div class="panel shadow-red" style="background:linear-gradient(160deg,#fff,#fff5e8);">
+      <div style="display:inline-block; background:var(--accent-red); color:#fff; padding:4px 12px; font-family:'Bangers'; border-radius:6px; margin-bottom:10px;">v3 → v4 (当前)</div>
+      <p style="font-size:14px; line-height:1.8;">
+        <b style="color:var(--accent-red);">➖ 移除</b><br/>
+        · 文化 NFT / 数字勋章<br/>
+        &nbsp;&nbsp;（区块链、Polygon、IPFS）<br/>
+        <br/>
+        <b style="color:var(--accent-orange);">🔄 调整</b><br/>
+        · 四大叙事 → <b>三大叙事</b><br/>
+        · PHP/Hyperf → <b>Go (Gin)</b><br/>
+        · 节省 3 天 → 钉钉/洞察/跨企业<br/>
+        <br/>
+        <b style="color:var(--accent-green);">✅ 保留</b><br/>
+        · 成就徽章墙（DB 存储不上链）
+      </p>
+    </div>
+
+  </div>
+
+  <div style="margin-top:20px; padding:14px 24px; background:var(--ink); color:var(--paper); border-radius:12px; display:flex; gap:20px; align-items:center;">
+    <span class="shout" style="font-size:18px;">LESS IS MORE</span>
+    <span style="font-size:15px;">v4 是<b>最 lean 的版本</b> · 已核验钉钉边界 · Go 重写换 3 天打磨时间</span>
+  </div>
+</section>
+
+<!-- ====== Slide 20 · 结尾 ====== -->
+<section class="slide" data-title="致谢">
+  <div class="speed-bg"></div>
+  <div class="deco-star" style="top:80px; left:80px;">★</div>
+  <div class="deco-star" style="top:140px; left:200px; font-size:32px; color:var(--accent-pink);">✦</div>
+  <div class="deco-star" style="bottom:160px; right:120px; color:var(--accent-blue);">★</div>
+
+  <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:30px;">
+
+    <div style="text-align:center;">
+      <h1 class="bigtitle" style="font-size:120px; color:var(--accent-red); text-shadow:6px 6px 0 var(--ink);">
+        谢谢
+      </h1>
+      <div style="margin-top:10px; font-family:'Bangers'; font-size:36px; letter-spacing:4px; color:var(--ink);">
+        Thank You !
+      </div>
+    </div>
+
+    <div style="display:flex; gap:30px; align-items:center;">
+
+      <!-- 角色们一起谢幕 -->
+      <svg width="120" height="160" viewBox="0 0 120 160">
+        <ellipse cx="60" cy="60" rx="40" ry="42" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+        <ellipse cx="60" cy="65" rx="30" ry="34" fill="#fff4e8" stroke="#1a1a1a" stroke-width="2.5"/>
+        <ellipse cx="48" cy="68" rx="4" ry="5" fill="#1a1a1a"/>
+        <ellipse cx="72" cy="68" rx="4" ry="5" fill="#1a1a1a"/>
+        <path d="M 52 85 Q 60 92 68 85" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <path d="M 40 105 L 40 150 L 80 150 L 80 105" fill="#fff" stroke="#1a1a1a" stroke-width="2.5"/>
+        <text x="60" y="135" text-anchor="middle" font-family="Bangers" font-size="12">HR-AI</text>
+      </svg>
+
+      <svg width="120" height="160" viewBox="0 0 120 160">
+        <rect x="25" y="20" width="70" height="60" rx="14" fill="#4facfe" stroke="#1a1a1a" stroke-width="3"/>
+        <line x1="60" y1="20" x2="60" y2="10" stroke="#1a1a1a" stroke-width="2.5"/>
+        <circle cx="60" cy="8" r="3" fill="var(--accent-red)" stroke="#1a1a1a" stroke-width="1.5"/>
+        <rect x="35" y="38" width="50" height="20" rx="4" fill="#1a1a1a"/>
+        <circle cx="48" cy="48" r="5" fill="var(--accent-yellow)"/>
+        <circle cx="72" cy="48" r="5" fill="var(--accent-yellow)"/>
+        <rect x="40" y="85" width="40" height="50" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="2.5"/>
+        <text x="60" y="115" text-anchor="middle" font-family="Bangers" font-size="14">MCP</text>
+      </svg>
+
+      <svg width="120" height="160" viewBox="0 0 120 160">
+        <ellipse cx="60" cy="55" rx="38" ry="40" fill="#ffd4e5" stroke="#1a1a1a" stroke-width="3"/>
+        <ellipse cx="60" cy="60" rx="28" ry="32" fill="#fff4e8" stroke="#1a1a1a" stroke-width="2.5"/>
+        <ellipse cx="48" cy="62" rx="4" ry="6" fill="#1a1a1a"/>
+        <ellipse cx="72" cy="62" rx="4" ry="6" fill="#1a1a1a"/>
+        <path d="M 52 80 Q 60 86 68 80" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <circle cx="90" cy="85" r="6" fill="var(--accent-red)" stroke="#1a1a1a" stroke-width="2"/>
+        <rect x="40" y="100" width="40" height="50" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="2.5"/>
+        <text x="60" y="130" text-anchor="middle" font-family="Bangers" font-size="11">Live2D</text>
+      </svg>
+
+    </div>
+
+    <div style="display:flex; gap:20px; margin-top:10px;">
+      <span class="shout red" style="font-size:22px;">Q & A</span>
+      <span class="shout" style="font-size:22px;">DEMO ON SITE</span>
+      <span class="shout blue" style="font-size:22px;">SEE YOU IN FINALS</span>
+    </div>
+
+    <div style="margin-top:30px; text-align:center; color:#666; font-size:13px;">
+      📅 2026 · Standard Software Hackathon Team<br/>
+      🔗 mix_ads_web · culture_points_mall<br/>
+      ✉️ borak@gkkvip.cc
+    </div>
+
+  </div>
+
+  <div class="stamp" style="bottom:50px; right:50px; font-size:30px;">v4 · FINAL</div>
+</section>
+
+</div>
+
+<!-- ========== 底部导航 ========== -->
+<div class="nav">
+  <button onclick="prev()">◀ PREV</button>
+  <span class="pageno" id="pageno">01 / 20</span>
+  <button onclick="next()">NEXT ▶</button>
+</div>
+
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'base',
+  themeVariables: {
+    fontFamily: 'ZCOOL KuaiLe, PingFang SC, sans-serif',
+    fontSize: '14px',
+    primaryColor: '#fffef8',
+    primaryTextColor: '#1a1a1a',
+    primaryBorderColor: '#1a1a1a',
+    lineColor: '#1a1a1a',
+    secondaryColor: '#ffd93d',
+    tertiaryColor: '#ff7eb3'
+  },
+  flowchart: { curve: 'basis', useMaxWidth: true },
+  gantt: { useMaxWidth: true, barHeight: 22, fontSize: 13 }
+});
+
+const slides = document.querySelectorAll('.slide');
+let cur = 0;
+
+function show(i) {
+  slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+  cur = i;
+  document.getElementById('pageno').textContent =
+    String(i + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
+  document.getElementById('progress').style.width = ((i + 1) / slides.length * 100) + '%';
+}
+
+function next() { if (cur < slides.length - 1) show(cur + 1); }
+function prev() { if (cur > 0) show(cur - 1); }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+  if (e.key === 'Home') show(0);
+  if (e.key === 'End') show(slides.length - 1);
+  if (e.key === 'Escape') closeTOC();
+});
+
+// 鼠标点击翻页（左半屏上一页，右半屏下一页）
+document.addEventListener('click', (e) => {
+  if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.toc-panel') || e.target.closest('.toc-btn')) return;
+  if (e.clientX < window.innerWidth / 3) prev();
+  else if (e.clientX > window.innerWidth * 2 / 3) next();
+});
+
+// 构建 TOC
+const tocList = document.getElementById('tocList');
+slides.forEach((s, i) => {
+  const a = document.createElement('a');
+  a.innerHTML = `<span class="no">${String(i+1).padStart(2,'0')}</span><span>${s.dataset.title || ('Slide ' + (i+1))}</span>`;
+  a.onclick = () => { show(i); closeTOC(); };
+  tocList.appendChild(a);
+});
+
+function toggleTOC() { document.getElementById('tocPanel').classList.toggle('show'); }
+function closeTOC() { document.getElementById('tocPanel').classList.remove('show'); }
+
+show(0);
+</script>
+
+</body>
+</html>

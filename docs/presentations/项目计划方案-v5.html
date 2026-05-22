@@ -1,0 +1,2175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>文化积分商城 · AI 智能运营平台 | 项目方案 v5</title>
+<link href="https://fonts.font.im/css2?family=Bangers&family=Permanent+Marker&family=ZCOOL+KuaiLe&family=ZCOOL+QingKe+HuangYou&family=Ma+Shan+Zheng&display=swap" rel="stylesheet" onerror="this.remove()">
+<script>
+(function loadMermaid(){
+  var cdns = [
+    'https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js',
+    'https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js',
+    'https://cdn.bootcdn.net/ajax/libs/mermaid/10.6.1/mermaid.min.js',
+    'https://npm.elemecdn.com/mermaid@10.6.1/dist/mermaid.min.js'
+  ];
+  var i = 0;
+  function tryNext(){
+    if (i >= cdns.length) { console.warn('Mermaid 加载失败'); return; }
+    var s = document.createElement('script');
+    s.src = cdns[i++];
+    s.onload = function(){ window.__mermaidReady = true; if (window.__initMermaid) window.__initMermaid(); };
+    s.onerror = tryNext;
+    document.head.appendChild(s);
+  }
+  tryNext();
+})();
+</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --ink: #1a1a1a;
+  --paper: #fffef8;
+  --c-red: #ff4757;
+  --c-orange: #ff9f43;
+  --c-yellow: #ffd93d;
+  --c-blue: #4facfe;
+  --c-pink: #ff7eb3;
+  --c-green: #6dd5a3;
+  --c-purple: #a55eea;
+  --c-teal: #38b6a8;
+  --halftone: rgba(0,0,0,.08);
+
+  --fs-h1: 80px;
+  --fs-h2: 50px;
+  --fs-h3: 30px;
+  --fs-body: 17px;
+  --fs-card: 16px;
+  --fs-sm: 15px;
+  --fs-xs: 13px;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'ZCOOL KuaiLe', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  font-size: var(--fs-body);
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, var(--halftone) 1px, transparent 1.6px),
+    radial-gradient(circle at 70% 70%, var(--halftone) 1px, transparent 1.6px);
+  background-size: 18px 18px, 26px 26px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide {
+  position: absolute; inset: 0;
+  padding: 36px 56px 56px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(40px);
+  transition: opacity .45s ease, transform .45s ease;
+  display: flex; flex-direction: column;
+  z-index: 2;
+}
+.slide.active { opacity: 1; pointer-events: auto; transform: translateX(0); }
+
+/* === 导航 === */
+.nav {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  padding: 6px 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+  z-index: 10;
+}
+.nav button {
+  border: none; background: none; cursor: pointer;
+  font-size: 18px; font-weight: bold; color: var(--ink);
+  padding: 4px 10px;
+  font-family: 'Bangers', cursive;
+}
+.nav button:hover { color: var(--c-red); transform: scale(1.1); }
+.nav .pageno {
+  font-family: 'Bangers', cursive; font-size: 17px;
+  letter-spacing: 1px;
+  min-width: 60px; text-align: center;
+}
+
+.toc-btn {
+  position: fixed; top: 14px; right: 14px;
+  background: var(--c-yellow);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 6px 14px;
+  font-family: 'ZCOOL KuaiLe'; font-size: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* === 标签 === */
+.slide-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-family: 'Bangers', cursive;
+  font-size: 14px; letter-spacing: 2px;
+  align-self: flex-start;
+  margin-bottom: 8px;
+}
+.slide-tag.red { background: var(--c-red); }
+.slide-tag.blue { background: var(--c-blue); }
+.slide-tag.orange { background: var(--c-orange); }
+.slide-tag.green { background: var(--c-green); }
+.slide-tag.purple { background: var(--c-purple); }
+.slide-tag.pink { background: var(--c-pink); }
+.slide-tag.teal { background: var(--c-teal); }
+
+/* === 标题 === */
+h1.bigtitle {
+  font-family: 'ZCOOL QingKe HuangYou', 'PingFang SC', sans-serif;
+  font-size: var(--fs-h1); line-height: 1.05;
+  color: var(--ink);
+  letter-spacing: 1px;
+  text-shadow: 4px 4px 0 var(--c-yellow);
+}
+h2.title {
+  font-family: 'ZCOOL QingKe HuangYou', 'PingFang SC', sans-serif;
+  font-size: var(--fs-h2); line-height: 1.1;
+  position: relative; display: inline-block;
+}
+h2.title::after {
+  content: ''; position: absolute; left: 0; bottom: -6px;
+  width: 100%; height: 9px;
+  background: linear-gradient(90deg, var(--c-yellow) 50%, transparent 50%);
+  background-size: 16px 9px;
+  z-index: -1;
+}
+.subtitle {
+  font-size: var(--fs-body);
+  color: #555;
+  margin-top: 10px;
+  font-family: 'ZCOOL KuaiLe';
+}
+
+/* === 漫画框 === */
+.panel {
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 6px 6px 0 var(--ink);
+  padding: 18px 22px;
+  position: relative;
+}
+.panel.sh-red { box-shadow: 6px 6px 0 var(--c-red); }
+.panel.sh-blue { box-shadow: 6px 6px 0 var(--c-blue); }
+.panel.sh-orange { box-shadow: 6px 6px 0 var(--c-orange); }
+.panel.sh-pink { box-shadow: 6px 6px 0 var(--c-pink); }
+.panel.sh-green { box-shadow: 6px 6px 0 var(--c-green); }
+.panel.sh-yellow { box-shadow: 6px 6px 0 var(--c-yellow); }
+.panel.sh-purple { box-shadow: 6px 6px 0 var(--c-purple); }
+.panel.sh-teal { box-shadow: 6px 6px 0 var(--c-teal); }
+
+.panel-title {
+  display: flex; align-items: center; gap: 12px;
+  font-family: 'ZCOOL KuaiLe';
+  font-size: 24px;
+  margin-bottom: 12px;
+}
+.panel-title .badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  background: var(--c-yellow);
+  border: 2.5px solid var(--ink);
+  border-radius: 50%;
+  font-family: 'Bangers', cursive;
+  font-size: 20px;
+}
+
+.shout {
+  display: inline-block;
+  font-family: 'Bangers', 'Permanent Marker', cursive;
+  font-size: 26px;
+  background: var(--c-yellow);
+  border: 3px solid var(--ink);
+  padding: 6px 16px;
+  border-radius: 8px;
+  transform: rotate(-3deg);
+  box-shadow: 3px 3px 0 var(--ink);
+  letter-spacing: 1px;
+}
+.shout.red { background: var(--c-red); color: var(--paper); }
+.shout.blue { background: var(--c-blue); color: var(--paper); }
+.shout.pink { background: var(--c-pink); color: var(--paper); }
+.shout.green { background: var(--c-green); }
+.shout.teal { background: var(--c-teal); color: var(--paper); }
+
+/* === 关键词 === */
+.kw {
+  background: linear-gradient(180deg, transparent 55%, var(--c-yellow) 55%);
+  padding: 0 3px;
+  font-weight: bold;
+}
+.kw-red {
+  background: linear-gradient(180deg, transparent 55%, var(--c-pink) 55%);
+  padding: 0 3px;
+  font-weight: bold;
+}
+.kw-blue {
+  background: var(--c-blue);
+  color: var(--paper);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+/* === Grid === */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+
+/* === 表格 === */
+table.comic {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: 'ZCOOL KuaiLe';
+  font-size: var(--fs-card);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+table.comic th {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 12px 16px;
+  text-align: left;
+  font-family: 'Bangers', cursive;
+  letter-spacing: 1.5px;
+  font-size: 18px;
+}
+table.comic td {
+  padding: 10px 16px;
+  border-top: 2px dashed #ddd;
+  vertical-align: top;
+}
+table.comic tr:nth-child(even) td { background: #fafaf3; }
+table.comic td.tag { font-weight: bold; }
+table.comic td.tag.red { color: var(--c-red); }
+table.comic td.tag.blue { color: var(--c-blue); }
+table.comic td.tag.green { color: var(--c-teal); }
+table.comic td.tag.purple { color: var(--c-purple); }
+
+/* === 卡片 === */
+.card {
+  background: var(--paper);
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 4px 4px 0 var(--ink);
+  position: relative;
+}
+.card .ic {
+  font-size: 32px; line-height: 1;
+  display: inline-block; margin-bottom: 6px;
+}
+.card .tt {
+  font-family: 'ZCOOL KuaiLe'; font-size: 19px; font-weight: bold;
+  margin-bottom: 6px;
+}
+.card .dd { font-size: var(--fs-sm); color: #555; line-height: 1.55; }
+.card.hi { background: var(--c-yellow); }
+.card.hi2 { background: var(--c-pink); color: var(--ink); }
+.card.hi3 { background: var(--c-blue); color: var(--paper); }
+.card.hi3 .dd { color: var(--paper); }
+
+/* === 步骤 === */
+.step {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 8px 0;
+}
+.step .n {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  background: var(--c-yellow);
+  border: 2.5px solid var(--ink);
+  border-radius: 50%;
+  font-family: 'Bangers', cursive; font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.step .txt { font-size: var(--fs-card); padding-top: 6px; line-height: 1.5; }
+
+/* === 装饰 === */
+.deco-star {
+  position: absolute;
+  font-family: 'Bangers', cursive;
+  font-size: 60px; color: var(--c-yellow);
+  -webkit-text-stroke: 2.5px var(--ink);
+  transform: rotate(-15deg);
+  z-index: 1;
+}
+.deco-lines {
+  position: absolute;
+  width: 100px; height: 100px;
+  background: repeating-linear-gradient(45deg, var(--ink), var(--ink) 2px, transparent 2px, transparent 9px);
+  opacity: .25;
+  pointer-events: none;
+}
+.char { position: absolute; pointer-events: none; z-index: 1; }
+
+.diagram {
+  flex: 1;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 6px 6px 0 var(--ink);
+  padding: 16px;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.diagram .mermaid { width: 100%; font-size: 15px; }
+
+.progress {
+  position: fixed; top: 0; left: 0; height: 5px;
+  background: linear-gradient(90deg, var(--c-red), var(--c-orange), var(--c-yellow));
+  z-index: 11;
+  transition: width .4s;
+  border-right: 2px solid var(--ink);
+}
+
+.stamp {
+  position: absolute;
+  font-family: 'Bangers', cursive;
+  border: 4px double var(--c-red);
+  color: var(--c-red);
+  padding: 6px 14px;
+  font-size: 22px;
+  transform: rotate(-12deg);
+  letter-spacing: 2px;
+  opacity: .85;
+  border-radius: 6px;
+}
+
+.num-big {
+  font-family: 'Bangers', cursive;
+  font-size: 50px;
+  color: var(--c-red);
+  -webkit-text-stroke: 2px var(--ink);
+  line-height: 1;
+}
+.num-lbl { font-size: 14px; color: #555; margin-top: 4px; }
+
+/* === 价值观维度色块 === */
+.dim {
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 5px 5px 0 var(--ink);
+  position: relative;
+  overflow: hidden;
+}
+.dim::before {
+  content: ''; position: absolute; top: -10px; right: -10px;
+  width: 60px; height: 60px;
+  background: rgba(0,0,0,.06);
+  border-radius: 50%;
+}
+.dim .d-icon {
+  font-size: 36px; line-height: 1;
+  display: block; margin-bottom: 6px;
+}
+.dim .d-name {
+  font-family: 'ZCOOL QingKe HuangYou';
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+.dim .d-kw {
+  font-size: 13px;
+  color: rgba(0,0,0,.65);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.dim .d-scene {
+  font-size: 13px;
+  line-height: 1.55;
+  padding-top: 8px;
+  border-top: 2px dashed rgba(0,0,0,.2);
+}
+.dim.c1 { background: linear-gradient(135deg, #fff5e8, #fff0d6); }
+.dim.c2 { background: linear-gradient(135deg, #e8f4ff, #d6eaff); }
+.dim.c3 { background: linear-gradient(135deg, #ffe8f0, #ffd6e5); }
+.dim.c4 { background: linear-gradient(135deg, #e8fff0, #d6ffe5); }
+.dim.c5 { background: linear-gradient(135deg, #f5e8ff, #ead6ff); }
+.dim.c6 { background: linear-gradient(135deg, #fffce0, #fff5b3); }
+
+/* === 代码块 === */
+.codeblock {
+  background: #1a1a1a;
+  color: #e8e8e8;
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow: auto;
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--c-yellow);
+}
+.codeblock .kwd { color: #ff7eb3; }
+.codeblock .str { color: #ffd93d; }
+.codeblock .com { color: #6dd5a3; }
+.codeblock .num { color: #4facfe; }
+.codeblock .typ { color: #a55eea; }
+
+/* === 工具类 === */
+small.lab { font-size: 13px; color: #666; letter-spacing: 1px; }
+
+/* === TOC === */
+.toc-panel {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  display: none; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.toc-panel.show { display: flex; }
+.toc-inner {
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  border-radius: 18px;
+  padding: 28px 32px;
+  max-width: 960px; width: 80%;
+  max-height: 80vh; overflow: auto;
+  box-shadow: 8px 8px 0 var(--ink);
+}
+.toc-inner h3 {
+  font-family: 'ZCOOL QingKe HuangYou'; font-size: 30px;
+  margin-bottom: 16px;
+}
+.toc-list {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 18px;
+}
+.toc-list a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px;
+  font-family: 'ZCOOL KuaiLe'; font-size: 16px;
+  border: 2px solid var(--ink); border-radius: 8px;
+  text-decoration: none; color: var(--ink);
+  background: var(--paper);
+  cursor: pointer;
+}
+.toc-list a:hover { background: var(--c-yellow); }
+.toc-list a .no {
+  width: 30px; height: 30px;
+  background: var(--c-orange);
+  border: 2px solid var(--ink); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Bangers'; font-size: 14px; flex-shrink: 0;
+}
+
+/* === 滚动条 === */
+.diagram::-webkit-scrollbar { width: 8px; height: 8px; }
+.diagram::-webkit-scrollbar-thumb { background: var(--ink); border-radius: 4px; }
+.codeblock::-webkit-scrollbar { width: 6px; height: 6px; }
+.codeblock::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+
+/* === 速度线 === */
+.speed-bg {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(75deg,
+    transparent, transparent 14px,
+    rgba(0,0,0,.04) 14px, rgba(0,0,0,.04) 16px);
+  pointer-events: none;
+}
+
+/* === 雷达图容器 === */
+.radar-wrap {
+  display: flex; align-items: center; justify-content: center;
+  padding: 10px;
+}
+
+/* === Phase 时间线 === */
+.phase {
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  padding: 18px 20px;
+  position: relative;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.phase .ph-tag {
+  display: inline-block;
+  font-family: 'Bangers';
+  font-size: 16px;
+  letter-spacing: 2px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 2px solid var(--ink);
+  margin-bottom: 10px;
+}
+.phase .ph-name {
+  font-family: 'ZCOOL QingKe HuangYou';
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+.phase .ph-time {
+  font-size: 13px; color: #777;
+  margin-bottom: 10px;
+}
+.phase ul {
+  list-style: none; padding-left: 0;
+}
+.phase li {
+  font-size: var(--fs-card);
+  padding: 4px 0 4px 22px;
+  position: relative;
+  line-height: 1.5;
+}
+.phase li::before {
+  content: '◆';
+  position: absolute; left: 0; top: 4px;
+  color: var(--c-orange);
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<button class="toc-btn" onclick="toggleTOC()">📑 目录</button>
+
+<div class="toc-panel" id="tocPanel" onclick="if(event.target===this)toggleTOC()">
+  <div class="toc-inner">
+    <h3>📚 演示目录 · Table of Contents</h3>
+    <div class="toc-list" id="tocList"></div>
+  </div>
+</div>
+
+<div class="deck" id="deck">
+
+<!-- ========== 1 · 封面 ========== -->
+<section class="slide active" data-title="封面">
+  <div class="speed-bg"></div>
+  <div class="deco-star" style="top:60px; right:120px;">★</div>
+  <div class="deco-star" style="top:140px; right:60px; font-size:36px; color:var(--c-pink);">✦</div>
+  <div class="deco-lines" style="left:40px; top:60px;"></div>
+  <div class="deco-lines" style="right:80px; bottom:80px; transform:rotate(45deg);"></div>
+
+  <div style="margin-top:50px; max-width:1000px;">
+    <div style="display:inline-block; background:var(--c-red); color:var(--paper); padding:6px 18px; font-family:'Bangers'; font-size:20px; letter-spacing:2px; border:3px solid var(--ink); box-shadow:4px 4px 0 var(--ink); transform:rotate(-2deg); margin-bottom:30px;">
+      PROJECT PROPOSAL · v5
+    </div>
+    <h1 class="bigtitle" style="font-size:84px;">文化积分商城</h1>
+    <h1 class="bigtitle" style="font-size:64px; margin-top:14px; color:var(--c-red); text-shadow:4px 4px 0 var(--ink);">AI 智能运营平台</h1>
+    <div style="margin-top:30px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <span class="shout teal">价值观驱动</span>
+      <span class="shout blue">AI 智能化</span>
+      <span class="shout pink">开放生态</span>
+    </div>
+    <div style="margin-top:50px; max-width:780px; padding:20px 26px; background:#fff; border:3px solid var(--ink); border-radius:16px; box-shadow:6px 6px 0 var(--c-yellow);">
+      <div style="font-family:'ZCOOL KuaiLe'; font-size:22px; line-height:1.55;">
+        以 <span class="kw">核心价值观</span> 为骨架 · 以 <span class="kw">积分</span> 为燃料<br/>
+        以 <span class="kw-red">AI</span> 为大脑 · 以 <span class="kw">MCP 协议</span> 为开放接口<br/>
+        <span style="font-size:18px; color:#666;">构建"价值观定义 → 行为激励 → 数据沉淀 → 智能洞察"的完整闭环</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 角色 -->
+  <div class="char" style="right:60px; bottom:50px;">
+    <svg width="300" height="340" viewBox="0 0 280 320">
+      <ellipse cx="140" cy="120" rx="78" ry="80" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+      <ellipse cx="140" cy="130" rx="56" ry="62" fill="#fff4e8" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M 84 100 Q 90 65 140 60 Q 190 65 196 100 Q 180 95 165 105 Q 155 100 140 105 Q 125 100 115 105 Q 100 95 84 100 Z" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M 84 100 Q 70 130 80 175 Q 90 165 88 150 Z" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M 196 100 Q 210 130 200 175 Q 190 165 192 150 Z" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+      <ellipse cx="118" cy="135" rx="9" ry="13" fill="#1a1a1a"/>
+      <ellipse cx="162" cy="135" rx="9" ry="13" fill="#1a1a1a"/>
+      <circle cx="121" cy="131" r="3" fill="#fff"/>
+      <circle cx="165" cy="131" r="3" fill="#fff"/>
+      <ellipse cx="105" cy="155" rx="8" ry="4" fill="#ffb3c8" opacity=".7"/>
+      <ellipse cx="175" cy="155" rx="8" ry="4" fill="#ffb3c8" opacity=".7"/>
+      <path d="M 132 165 Q 140 172 148 165" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+      <rect x="72" y="115" width="18" height="22" rx="6" fill="#4facfe" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="190" y="115" width="18" height="22" rx="6" fill="#4facfe" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M 90 195 L 90 290 L 190 290 L 190 195 Q 175 205 140 205 Q 105 205 90 195 Z" fill="#fff" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M 120 200 L 140 220 L 160 200" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+      <rect x="135" y="218" width="10" height="14" fill="var(--c-red)" stroke="#1a1a1a" stroke-width="2"/>
+      <rect x="100" y="240" width="80" height="22" rx="4" fill="var(--c-yellow)" stroke="#1a1a1a" stroke-width="2.5"/>
+      <text x="140" y="256" text-anchor="middle" font-family="Bangers" font-size="14" fill="#1a1a1a">HR · AI</text>
+    </svg>
+  </div>
+
+  <div style="position:absolute; bottom:24px; left:56px; color:#888; font-size:14px;">
+    Culture Points Mall · AI Operating Platform · Hackathon 2026
+  </div>
+</section>
+
+<!-- ========== 2 · 项目背景 ========== -->
+<section class="slide" data-title="项目背景">
+  <span class="slide-tag red">CHAPTER 01</span>
+  <h2 class="title">项目背景 · 价值观落地的运营难题</h2>
+  <p class="subtitle">"墙上写一套，做事另一套" — 现有共享 Excel 难以承载企业文化运营</p>
+
+  <div class="grid-4" style="margin-top:24px; gap:16px;">
+    <div class="panel sh-red">
+      <div class="panel-title"><span class="badge" style="background:var(--c-red);color:#fff;">📊</span>数据载体</div>
+      <p style="font-size:var(--fs-card); line-height:1.65;"><b>现状：</b>共享 Excel 单点管理</p>
+      <p style="font-size:var(--fs-sm); color:#555; line-height:1.6; margin-top:8px;">误操作、并发冲突、无审计、<span class="kw">负数积分异常</span>无法预防</p>
+    </div>
+    <div class="panel sh-orange">
+      <div class="panel-title"><span class="badge" style="background:var(--c-orange);">⚙️</span>业务流程</div>
+      <p style="font-size:var(--fs-card); line-height:1.65;"><b>现状：</b>HR 手工台账加减分</p>
+      <p style="font-size:var(--fs-sm); color:#555; line-height:1.6; margin-top:8px;">公平性存疑，员工无从核对，<span class="kw">规则不透明</span></p>
+    </div>
+    <div class="panel sh-purple">
+      <div class="panel-title"><span class="badge" style="background:var(--c-purple);color:#fff;">🚫</span>规则不闭环</div>
+      <p style="font-size:var(--fs-card); line-height:1.65;"><b>现状：</b>扫码即扣分，无校验</p>
+      <p style="font-size:var(--fs-sm); color:#555; line-height:1.6; margin-top:8px;">未中奖也被扣，体验差，<span class="kw">申诉成本高</span></p>
+    </div>
+    <div class="panel sh-blue">
+      <div class="panel-title"><span class="badge" style="background:var(--c-blue);color:#fff;">📉</span>数据沉淀</div>
+      <p style="font-size:var(--fs-card); line-height:1.65;"><b>现状：</b>仅记录数值，无维度归属</p>
+      <p style="font-size:var(--fs-sm); color:#555; line-height:1.6; margin-top:8px;">无法回答"哪个价值观最薄弱"，<span class="kw">缺乏量化抓手</span></p>
+    </div>
+  </div>
+
+  <div style="margin-top:28px; padding:22px 28px; background:linear-gradient(135deg, #fff5e8 0%, #fff 100%); border:3px solid var(--ink); border-radius:14px; box-shadow:6px 6px 0 var(--c-yellow);">
+    <div style="display:flex; gap:18px; align-items:center;">
+      <span class="shout red" style="flex-shrink:0;">CORE QUESTION</span>
+      <div style="font-size:20px; line-height:1.6; font-family:'ZCOOL KuaiLe';">
+        如何让企业文化从口号变成<span class="kw-red">可观测、可调节、可优化</span>的运营指标？
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:18px; padding:14px 22px; background:#fff; border:2.5px dashed var(--ink); border-radius:10px;">
+    <span style="font-family:'ZCOOL KuaiLe'; font-size:17px; color:#444;">
+      <b style="color:var(--c-red);">本质命题：</b>文化积分系统不仅要解决工具问题，更要回答"如何让文化运营具备指标体系"这一战略问题
+    </span>
+  </div>
+</section>
+
+<!-- ========== 3 · 项目定位 ========== -->
+<section class="slide" data-title="项目定位">
+  <span class="slide-tag blue">CHAPTER 02</span>
+  <h2 class="title">项目定位 · 三大设计原则</h2>
+
+  <div style="margin-top:20px; padding:24px 30px; background:linear-gradient(135deg, #fff 60%, #fff5d6 100%); border:3px solid var(--ink); border-radius:14px; box-shadow:6px 6px 0 var(--ink);">
+    <div style="font-family:'Bangers'; font-size:14px; letter-spacing:2px; color:#666;">PROJECT VISION</div>
+    <h3 style="font-family:'ZCOOL QingKe HuangYou'; font-size:36px; margin-top:6px; line-height:1.3;">
+      钉钉里的<span class="kw-red">企业文化 AI 运营官</span> × <span class="kw">开放生态平台</span>
+    </h3>
+  </div>
+
+  <div class="grid-3" style="margin-top:24px; gap:20px; flex:1;">
+    <div class="dim c1">
+      <div style="font-family:'Bangers'; font-size:52px; color:var(--c-orange); -webkit-text-stroke:2px var(--ink); line-height:1;">01</div>
+      <div class="d-icon" style="margin-top:8px;">🎯</div>
+      <div class="d-name">价值观驱动</div>
+      <p style="font-size:var(--fs-card); line-height:1.65; margin-top:8px;">
+        每个积分、徽章、活动都<b>绑定明确的价值观维度</b>，使文化运营具备可量化的指标体系
+      </p>
+      <div style="margin-top:14px; padding:10px 12px; background:rgba(255,255,255,.7); border:2px solid var(--ink); border-radius:8px; font-size:14px;">
+        <b style="color:var(--c-orange);">关键产出：</b><br/>价值观分维度榜单、雷达图、均衡度评分
+      </div>
+    </div>
+
+    <div class="dim c2">
+      <div style="font-family:'Bangers'; font-size:52px; color:var(--c-blue); -webkit-text-stroke:2px var(--ink); line-height:1;">02</div>
+      <div class="d-icon" style="margin-top:8px;">🤖</div>
+      <div class="d-name">AI 智能化</div>
+      <p style="font-size:var(--fs-card); line-height:1.65; margin-top:8px;">
+        HR 通过<b>自然语言</b>即可完成活动策划、内容生产、数据归因、决策建议全流程
+      </p>
+      <div style="margin-top:14px; padding:10px 12px; background:rgba(255,255,255,.7); border:2px solid var(--ink); border-radius:8px; font-size:14px;">
+        <b style="color:var(--c-blue);">关键产出：</b><br/>HR-Agent / 数据洞察 / 平衡引擎
+      </div>
+    </div>
+
+    <div class="dim c3">
+      <div style="font-family:'Bangers'; font-size:52px; color:var(--c-pink); -webkit-text-stroke:2px var(--ink); line-height:1;">03</div>
+      <div class="d-icon" style="margin-top:8px;">🔌</div>
+      <div class="d-name">开放生态</div>
+      <p style="font-size:var(--fs-card); line-height:1.65; margin-top:8px;">
+        通过 <b>MCP 协议</b>将系统能力开放给任意 AI 客户端，企业自有 AI 工具可直接接入
+      </p>
+      <div style="margin-top:14px; padding:10px 12px; background:rgba(255,255,255,.7); border:2px solid var(--ink); border-radius:8px; font-size:14px;">
+        <b style="color:var(--c-pink);">关键产出：</b><br/>REST OpenAPI + MCP Server
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 4 · 价值观映射 设计思路 ========== -->
+<section class="slide" data-title="价值观映射 · 设计思路">
+  <span class="slide-tag teal">CHAPTER 03 · 核心设计</span>
+  <h2 class="title">价值观映射模型 · 系统的灵魂骨架</h2>
+  <p class="subtitle">不是"加分扣分"工具，而是把价值观转化为可量化指标的运营操作系统</p>
+
+  <div style="margin-top:24px; display:flex; gap:24px; flex:1;">
+
+    <div class="panel sh-teal" style="flex:1.1; background:linear-gradient(160deg, #fff, #e8fffb);">
+      <div class="panel-title"><span class="badge" style="background:var(--c-teal); color:#fff;">💡</span>设计思路</div>
+
+      <p style="font-size:var(--fs-card); line-height:1.75; color:#333;">
+        文化积分的本质，是把公司核心价值观转化为<br/>
+        <span class="kw-blue">可量化 · 可激励 · 可观测</span> 的运营指标
+      </p>
+
+      <div style="margin-top:18px; padding:14px 16px; background:#fff; border:2.5px solid var(--ink); border-radius:10px;">
+        <div style="font-family:'ZCOOL KuaiLe'; font-size:18px; margin-bottom:8px; color:var(--c-teal);">✨ 三个保证</div>
+        <div class="step"><span class="n" style="background:var(--c-orange);">1</span><span class="txt">每一份<b>积分</b>都有维度归属</span></div>
+        <div class="step"><span class="n" style="background:var(--c-blue); color:#fff;">2</span><span class="txt">每一个<b>徽章</b>都代表一个价值观</span></div>
+        <div class="step"><span class="n" style="background:var(--c-pink); color:#fff;">3</span><span class="txt">每一次<b>活动</b>都指向明确维度</span></div>
+      </div>
+    </div>
+
+    <div style="flex:1.4; display:flex; flex-direction:column; gap:16px;">
+      <div class="panel sh-yellow">
+        <div class="panel-title"><span class="badge">🔄</span>价值观运营闭环</div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; gap:6px;">
+          <div style="flex:1; text-align:center; padding:14px 8px; background:#fff5e8; border:2.5px solid var(--ink); border-radius:10px; box-shadow:2px 2px 0 var(--ink);">
+            <div style="font-size:26px;">📋</div>
+            <div style="font-family:'ZCOOL KuaiLe'; font-size:15px; margin-top:4px;">维度定义</div>
+          </div>
+          <div style="color:var(--c-red); font-size:24px; font-family:'Bangers';">→</div>
+          <div style="flex:1; text-align:center; padding:14px 8px; background:#e8f4ff; border:2.5px solid var(--ink); border-radius:10px; box-shadow:2px 2px 0 var(--ink);">
+            <div style="font-size:26px;">🎁</div>
+            <div style="font-family:'ZCOOL KuaiLe'; font-size:15px; margin-top:4px;">行为激励</div>
+          </div>
+          <div style="color:var(--c-red); font-size:24px; font-family:'Bangers';">→</div>
+          <div style="flex:1; text-align:center; padding:14px 8px; background:#ffe8f0; border:2.5px solid var(--ink); border-radius:10px; box-shadow:2px 2px 0 var(--ink);">
+            <div style="font-size:26px;">📊</div>
+            <div style="font-family:'ZCOOL KuaiLe'; font-size:15px; margin-top:4px;">数据沉淀</div>
+          </div>
+          <div style="color:var(--c-red); font-size:24px; font-family:'Bangers';">→</div>
+          <div style="flex:1; text-align:center; padding:14px 8px; background:#e8fff0; border:2.5px solid var(--ink); border-radius:10px; box-shadow:2px 2px 0 var(--ink);">
+            <div style="font-size:26px;">🧠</div>
+            <div style="font-family:'ZCOOL KuaiLe'; font-size:15px; margin-top:4px;">智能洞察</div>
+          </div>
+          <div style="color:var(--c-red); font-size:24px; font-family:'Bangers';">→</div>
+          <div style="flex:1; text-align:center; padding:14px 8px; background:#f5e8ff; border:2.5px solid var(--ink); border-radius:10px; box-shadow:2px 2px 0 var(--ink);">
+            <div style="font-size:26px;">⚙️</div>
+            <div style="font-family:'ZCOOL KuaiLe'; font-size:15px; margin-top:4px;">持续优化</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel sh-blue" style="flex:1;">
+        <div class="panel-title"><span class="badge" style="background:var(--c-blue); color:#fff;">🎯</span>对比传统积分系统</div>
+        <table style="width:100%; font-size:var(--fs-sm); border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f0f0f0;">
+              <th style="padding:8px 10px; text-align:left; border-bottom:2px solid var(--ink);">维度</th>
+              <th style="padding:8px 10px; text-align:left; border-bottom:2px solid var(--ink); color:#888;">传统积分</th>
+              <th style="padding:8px 10px; text-align:left; border-bottom:2px solid var(--ink); color:var(--c-red);">价值观驱动</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:6px 10px;">数据结构</td><td style="padding:6px 10px; color:#888;">单一数值</td><td style="padding:6px 10px;"><b>多维分值</b></td></tr>
+            <tr style="background:#fafaf3;"><td style="padding:6px 10px;">业务问题</td><td style="padding:6px 10px; color:#888;">"X 有多少分"</td><td style="padding:6px 10px;"><b>"哪个维度薄弱"</b></td></tr>
+            <tr><td style="padding:6px 10px;">运营动作</td><td style="padding:6px 10px; color:#888;">凭经验</td><td style="padding:6px 10px;"><b>数据驱动</b></td></tr>
+            <tr style="background:#fafaf3;"><td style="padding:6px 10px;">战略价值</td><td style="padding:6px 10px; color:#888;">工具</td><td style="padding:6px 10px;"><b>文化指标体系</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 5 · 6 大价值观维度 ========== -->
+<section class="slide" data-title="6 大价值观维度">
+  <span class="slide-tag teal">CHAPTER 03 · 价值观维度</span>
+  <h2 class="title">系统默认 6 大企业文化维度</h2>
+  <p class="subtitle">企业可基于自身价值观体系灵活增删、重命名、调整权重</p>
+
+  <div class="grid-3" style="margin-top:24px; flex:1; gap:16px;">
+    <div class="dim c1">
+      <div class="d-icon">🤝</div>
+      <div class="d-name">客户至上</div>
+      <div class="d-kw">用户思维 · 服务意识 · 价值创造</div>
+      <div class="d-scene">
+        <b style="color:var(--c-orange);">典型激励场景：</b><br/>
+        客户走访 · 用户调研 · 满意度专项 · 客户故事征集
+      </div>
+    </div>
+
+    <div class="dim c2">
+      <div class="d-icon">👥</div>
+      <div class="d-name">团队协作</div>
+      <div class="d-kw">跨部门合作 · 互助互信 · 共同成长</div>
+      <div class="d-scene">
+        <b style="color:var(--c-blue);">典型激励场景：</b><br/>
+        跨部门项目 · 知识共享 · 互助任务 · 团建活动
+      </div>
+    </div>
+
+    <div class="dim c3">
+      <div class="d-icon">💡</div>
+      <div class="d-name">创新求变</div>
+      <div class="d-kw">突破常规 · 勇于尝试 · 变革驱动</div>
+      <div class="d-scene">
+        <b style="color:var(--c-pink);">典型激励场景：</b><br/>
+        创意提案 · 技术预研 · 流程优化 · 内部 Hackathon
+      </div>
+    </div>
+
+    <div class="dim c4">
+      <div class="d-icon">⚖️</div>
+      <div class="d-name">诚信务实</div>
+      <div class="d-kw">担当负责 · 说到做到 · 落地为王</div>
+      <div class="d-scene">
+        <b style="color:var(--c-teal);">典型激励场景：</b><br/>
+        项目复盘 · 责任领取 · 关键交付 · 合规建设
+      </div>
+    </div>
+
+    <div class="dim c5">
+      <div class="d-icon">🎯</div>
+      <div class="d-name">极致专注</div>
+      <div class="d-kw">工匠精神 · 追求卓越 · 品质至上</div>
+      <div class="d-scene">
+        <b style="color:var(--c-purple);">典型激励场景：</b><br/>
+        技能竞赛 · 质量改进 · 深度专研 · 最佳实践沉淀
+      </div>
+    </div>
+
+    <div class="dim c6">
+      <div class="d-icon">📚</div>
+      <div class="d-name">学习成长</div>
+      <div class="d-kw">持续学习 · 知识分享 · 自我突破</div>
+      <div class="d-scene">
+        <b style="color:#b8932b;">典型激励场景：</b><br/>
+        培训 · 读书会 · 技术分享 · 技能认证
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:18px; padding:14px 22px; background:var(--ink); color:var(--paper); border-radius:12px; display:flex; gap:18px; align-items:center;">
+    <span class="shout" style="font-size:18px; flex-shrink:0;">CONFIGURABLE</span>
+    <span style="font-size:16px;">维度配置 = 租户级 · 可自定义编码 / 显示名 / 关键词 / 权重 / 排序 · 行业模板可一键导入</span>
+  </div>
+</section>
+
+<!-- ========== 6 · 价值观映射 + 文化护照 ========== -->
+<section class="slide" data-title="维度映射 + 文化护照">
+  <span class="slide-tag teal">CHAPTER 03 · 模块映射</span>
+  <h2 class="title">价值观如何贯穿系统全模块</h2>
+  <p class="subtitle">从积分体系到 HR-Agent · 维度标签贯穿全链路</p>
+
+  <div style="margin-top:20px; display:flex; gap:24px; flex:1;">
+
+    <div style="flex:1.2;">
+      <table class="comic">
+        <thead>
+          <tr><th style="width:30%;">系统模块</th><th>价值观融入方式</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="tag" style="color:var(--c-orange);">积分体系</td><td>每次加分绑定一个维度，员工拥有 <b>总积分 + 多维分值</b></td></tr>
+          <tr><td class="tag" style="color:var(--c-blue);">排行榜</td><td><b>总榜 + 维度分榜</b>，支持员工 / 部门双视角</td></tr>
+          <tr><td class="tag" style="color:var(--c-pink);">活动中心</td><td>活动发布时<b>选择主推维度</b>，作为积分归属</td></tr>
+          <tr><td class="tag" style="color:var(--c-teal);">徽章成就</td><td>每个徽章绑定一个维度，<b>按稀有度分阶</b></td></tr>
+          <tr><td class="tag" style="color:var(--c-purple);">数据洞察</td><td>维度参与度对比、<b>薄弱维度归因</b>、均衡度评估</td></tr>
+          <tr><td class="tag" style="color:#b8932b;">跨企业指数</td><td>按维度跨企业对标，形成<b>行业价值观图谱</b></td></tr>
+          <tr><td class="tag" style="color:var(--c-red);">AI 内容生成</td><td>Prompt 注入公司价值观语境，<b>文案贴合企业文化</b></td></tr>
+          <tr><td class="tag" style="color:var(--ink);">HR-Agent</td><td>发布活动时<b>自动推荐维度归属</b>，预警维度失衡</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="panel sh-pink" style="background:linear-gradient(160deg,#fff,#ffeef5);">
+        <div class="panel-title"><span class="badge" style="background:var(--c-pink); color:#fff;">📔</span>员工文化护照</div>
+
+        <div class="radar-wrap" style="margin-top:6px;">
+          <svg width="240" height="220" viewBox="0 0 240 220">
+            <!-- 雷达背景 -->
+            <g transform="translate(120,115)">
+              <polygon points="0,-90 78,-45 78,45 0,90 -78,45 -78,-45" fill="none" stroke="#ccc" stroke-width="1.5"/>
+              <polygon points="0,-60 52,-30 52,30 0,60 -52,30 -52,-30" fill="none" stroke="#ddd" stroke-width="1"/>
+              <polygon points="0,-30 26,-15 26,15 0,30 -26,15 -26,-15" fill="none" stroke="#ddd" stroke-width="1"/>
+              <!-- 数据 -->
+              <polygon points="0,-72 60,-35 65,38 0,75 -55,32 -68,-39"
+                fill="rgba(255,126,179,.35)"
+                stroke="var(--c-pink)" stroke-width="2.5"/>
+              <!-- 顶点 -->
+              <circle cx="0" cy="-72" r="4" fill="var(--c-pink)"/>
+              <circle cx="60" cy="-35" r="4" fill="var(--c-pink)"/>
+              <circle cx="65" cy="38" r="4" fill="var(--c-pink)"/>
+              <circle cx="0" cy="75" r="4" fill="var(--c-pink)"/>
+              <circle cx="-55" cy="32" r="4" fill="var(--c-pink)"/>
+              <circle cx="-68" cy="-39" r="4" fill="var(--c-pink)"/>
+              <!-- 标签 -->
+              <text x="0" y="-100" text-anchor="middle" font-family="ZCOOL KuaiLe" font-size="12" fill="#1a1a1a">客户至上</text>
+              <text x="92" y="-50" text-anchor="middle" font-family="ZCOOL KuaiLe" font-size="12" fill="#1a1a1a">团队协作</text>
+              <text x="92" y="56" text-anchor="middle" font-family="ZCOOL KuaiLe" font-size="12" fill="#1a1a1a">创新求变</text>
+              <text x="0" y="106" text-anchor="middle" font-family="ZCOOL KuaiLe" font-size="12" fill="#1a1a1a">诚信务实</text>
+              <text x="-92" y="56" text-anchor="middle" font-family="ZCOOL KuaiLe" font-size="12" fill="#1a1a1a">极致专注</text>
+              <text x="-92" y="-50" text-anchor="middle" font-family="ZCOOL KuaiLe" font-size="12" fill="#1a1a1a">学习成长</text>
+            </g>
+          </svg>
+        </div>
+
+        <div style="margin-top:6px; padding:10px 14px; background:#fff; border:2px solid var(--ink); border-radius:8px; font-size:14px;">
+          <b>包含：</b>价值观雷达图 · 维度成就路径<br/>季度 / 年度文化报告（AI 生成）
+        </div>
+      </div>
+
+      <div class="panel sh-purple">
+        <div class="panel-title" style="font-size:20px;"><span class="badge" style="background:var(--c-purple); color:#fff;">🏆</span>应用场景</div>
+        <div style="font-size:var(--fs-sm); line-height:1.7;">
+          • 年度评优的客观依据<br/>
+          • 晋升参考维度<br/>
+          • 内部转岗匹配（按维度偏好）
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 7 · 核心功能模块 ========== -->
+<section class="slide" data-title="核心功能模块">
+  <span class="slide-tag green">CHAPTER 04</span>
+  <h2 class="title">核心功能模块 · 六大业务板块</h2>
+  <p class="subtitle">完整业务闭环 · 每个模块均与价值观维度联动</p>
+
+  <div class="grid-3" style="margin-top:24px; flex:1; gap:18px;">
+    <div class="panel sh-orange">
+      <div class="panel-title"><span class="badge" style="background:var(--c-orange);">🏆</span>文化分排行榜</div>
+      <ul style="font-size:var(--fs-card); line-height:1.85; padding-left:20px;">
+        <li>总榜 + <b>多维度分榜</b></li>
+        <li>部门 / 个人双视角</li>
+        <li>季度 / 年度切换</li>
+        <li>钉钉工作台一屏直达</li>
+      </ul>
+    </div>
+
+    <div class="panel sh-blue">
+      <div class="panel-title"><span class="badge" style="background:var(--c-blue); color:#fff;">📅</span>活动中心</div>
+      <ul style="font-size:var(--fs-card); line-height:1.85; padding-left:20px;">
+        <li>HR 发布 → 钉钉日程</li>
+        <li><b>接受 = 报名意向</b></li>
+        <li>现场签到 → 审核加分</li>
+        <li class="kw">活动必须绑定价值观维度</li>
+      </ul>
+    </div>
+
+    <div class="panel sh-pink">
+      <div class="panel-title"><span class="badge" style="background:var(--c-pink); color:#fff;">👤</span>我的（文化护照）</div>
+      <ul style="font-size:var(--fs-card); line-height:1.85; padding-left:20px;">
+        <li>个人积分总览</li>
+        <li><b>维度雷达图</b></li>
+        <li>流水明细 · 徽章墙</li>
+        <li>年度文化报告</li>
+      </ul>
+    </div>
+
+    <div class="panel sh-red">
+      <div class="panel-title"><span class="badge" style="background:var(--c-red); color:#fff;">🎁</span>积分商城</div>
+      <ul style="font-size:var(--fs-card); line-height:1.85; padding-left:20px;">
+        <li>商品兑换 + 盲盒抽奖</li>
+        <li><b>TCC 事务</b>修复"扫码即扣"</li>
+        <li>未中奖不扣分</li>
+        <li>AI 主持人互动</li>
+      </ul>
+    </div>
+
+    <div class="panel sh-purple">
+      <div class="panel-title"><span class="badge" style="background:var(--c-purple); color:#fff;">⚙️</span>后台管理</div>
+      <ul style="font-size:var(--fs-card); line-height:1.85; padding-left:20px;">
+        <li><b>价值观维度配置</b></li>
+        <li>积分管理 · 签到审核</li>
+        <li>活动 / 商品 / 二维码</li>
+        <li>多租户隔离</li>
+      </ul>
+    </div>
+
+    <div class="panel sh-green">
+      <div class="panel-title"><span class="badge" style="background:var(--c-green);">💬</span>钉钉集成</div>
+      <ul style="font-size:var(--fs-card); line-height:1.85; padding-left:20px;">
+        <li>日程 / 工作通知</li>
+        <li>互动卡片 / 群机器人</li>
+        <li>OA 审批 / 工作台卡片</li>
+        <li>员工<b>无需跳出钉钉</b></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 8 · AI 亮点 ①② HR-Agent + MCP ========== -->
+<section class="slide" data-title="AI 亮点 ①② HR-Agent / MCP">
+  <span class="slide-tag red">CHAPTER 05 · AI 智能亮点</span>
+  <h2 class="title">5.1 HR-Agent · 5.2 开放 API + MCP Server</h2>
+
+  <div class="grid-2" style="margin-top:20px; flex:1;">
+    <!-- HR-Agent -->
+    <div class="panel sh-red" style="padding:22px; background:linear-gradient(160deg,#fff,#fff0f0);">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+        <span style="font-family:'Bangers'; font-size:56px; color:var(--c-red); -webkit-text-stroke:2.5px var(--ink); line-height:1;">5.1</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:28px;">HR-Agent</div>
+          <small class="lab">自然语言运营 · Function Calling</small>
+        </div>
+      </div>
+
+      <div style="margin-top:10px; padding:14px 16px; background:var(--ink); color:var(--paper); border-radius:10px; font-family:'SF Mono', monospace; font-size:14px; line-height:1.6;">
+        <span style="color:var(--c-green);">// HR 输入：</span><br/>
+        给销售部发一场月底冲刺活动，下周三<br/>
+        18:00，<span style="color:var(--c-yellow);">主推团队协作维度</span>，<br/>
+        奖励 50 分，限 30 人
+      </div>
+
+      <div style="margin-top:14px;">
+        <div class="step"><span class="n">1</span><span class="txt"><b>活动创建</b>工具 → 绑定"团队协作"维度</span></div>
+        <div class="step"><span class="n">2</span><span class="txt"><b>内容生成</b>工具 → 海报 + 推送文案<br/><small style="color:#777;">（注入价值观语境）</small></span></div>
+        <div class="step"><span class="n">3</span><span class="txt"><b>钉钉日程</b>工具 → 创建日程邀请</span></div>
+        <div class="step"><span class="n">4</span><span class="txt"><b>互动卡片</b>工具 → 群内可点击报名</span></div>
+        <div class="step"><span class="n">5</span><span class="txt"><b>群机器人</b>工具 → 部门群播报</span></div>
+        <div class="step"><span class="n">6</span><span class="txt">返回结构化执行报告</span></div>
+      </div>
+    </div>
+
+    <!-- MCP -->
+    <div class="panel sh-blue" style="padding:22px; background:linear-gradient(160deg,#fff,#e8f4ff);">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+        <span style="font-family:'Bangers'; font-size:56px; color:var(--c-blue); -webkit-text-stroke:2.5px var(--ink); line-height:1;">5.2</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:28px;">开放 API + MCP Server</div>
+          <small class="lab">两层对外开放能力</small>
+        </div>
+      </div>
+
+      <div style="margin-top:10px; display:flex; gap:12px;">
+        <div style="flex:1; padding:14px; background:#fff; border:2.5px solid var(--ink); border-radius:10px;">
+          <div style="font-family:'Bangers'; font-size:18px; color:var(--c-blue); margin-bottom:6px;">REST OpenAPI</div>
+          <div style="font-size:14px; color:#555; line-height:1.55;">标准 API + OAuth<br/>企业自有系统对接</div>
+        </div>
+        <div style="flex:1; padding:14px; background:var(--ink); color:var(--paper); border-radius:10px;">
+          <div style="font-family:'Bangers'; font-size:18px; color:var(--c-yellow); margin-bottom:6px;">★ MCP Server</div>
+          <div style="font-size:14px; line-height:1.55;">完整业务工具集<br/>AI 客户端直连</div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px; padding:14px 16px; border:2.5px solid var(--ink); border-radius:10px; background:#fff;">
+        <div style="font-family:'ZCOOL KuaiLe'; font-size:17px; color:var(--c-red); margin-bottom:8px;">📦 MCP 工具集</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <span style="padding:3px 10px; background:var(--c-yellow); border:2px solid var(--ink); border-radius:6px; font-size:13px;">查询积分</span>
+          <span style="padding:3px 10px; background:var(--c-orange); border:2px solid var(--ink); border-radius:6px; font-size:13px;">加分</span>
+          <span style="padding:3px 10px; background:var(--c-pink); border:2px solid var(--ink); border-radius:6px; font-size:13px;">发布活动</span>
+          <span style="padding:3px 10px; background:var(--c-blue); border:2px solid var(--ink); border-radius:6px; font-size:13px; color:#fff;">查排名</span>
+          <span style="padding:3px 10px; background:var(--c-green); border:2px solid var(--ink); border-radius:6px; font-size:13px;">颁发徽章</span>
+          <span style="padding:3px 10px; background:var(--c-purple); border:2px solid var(--ink); border-radius:6px; font-size:13px; color:#fff;">调用钉钉</span>
+        </div>
+      </div>
+
+      <div style="margin-top:14px; padding:12px 14px; background:#fff8e8; border:2.5px dashed var(--c-red); border-radius:10px; font-size:14px; line-height:1.6;">
+        <b style="color:var(--c-red);">兼容客户端：</b>Claude Desktop · ChatGPT · Cursor · 任意支持 MCP 的 AI 工具
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 9 · AI 亮点 ③④ 内容生成 + 数据洞察 ========== -->
+<section class="slide" data-title="AI 亮点 ③④ 内容/洞察">
+  <span class="slide-tag pink">CHAPTER 05 · AI 智能亮点</span>
+  <h2 class="title">5.3 AI 内容生成 · 5.4 AI 数据洞察 Dashboard</h2>
+
+  <div class="grid-2" style="margin-top:20px; flex:1;">
+    <!-- 内容生成 -->
+    <div class="panel sh-pink" style="background:linear-gradient(160deg,#fff,#ffeef5);">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+        <span style="font-family:'Bangers'; font-size:56px; color:var(--c-pink); -webkit-text-stroke:2.5px var(--ink); line-height:1;">5.3</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:26px;">AI 内容生成</div>
+          <small class="lab">一句话 → 全套素材</small>
+        </div>
+      </div>
+
+      <div class="grid-2" style="gap:12px;">
+        <div style="padding:12px 14px; background:#fff; border:2.5px solid var(--ink); border-radius:10px;">
+          <div style="font-size:24px;">📝</div>
+          <b style="font-size:var(--fs-card);">活动文案</b>
+          <div style="font-size:13px; color:#555; margin-top:4px;">注入价值观关键词<br/>语境贴合企业文化</div>
+        </div>
+        <div style="padding:12px 14px; background:#fff; border:2.5px solid var(--ink); border-radius:10px;">
+          <div style="font-size:24px;">🎨</div>
+          <b style="font-size:var(--fs-card);">活动海报 / 奖品图</b>
+          <div style="font-size:13px; color:#555; margin-top:4px;">通义万相 / SD-XL</div>
+        </div>
+        <div style="padding:12px 14px; background:#fff; border:2.5px solid var(--ink); border-radius:10px;">
+          <div style="font-size:24px;">💬</div>
+          <b style="font-size:var(--fs-card);">钉钉推送话术</b>
+          <div style="font-size:13px; color:#555; margin-top:4px;">正式 / 活泼 / 紧急<br/>多语气切换</div>
+        </div>
+        <div style="padding:12px 14px; background:#fff; border:2.5px solid var(--ink); border-radius:10px;">
+          <div style="font-size:24px;">🔳</div>
+          <b style="font-size:var(--fs-card);">签到二维码</b>
+          <div style="font-size:13px; color:#555; margin-top:4px;">嵌入品牌元素</div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px; padding:12px 16px; background:var(--ink); color:var(--paper); border-radius:10px; font-size:var(--fs-sm); display:flex; align-items:center; gap:10px;">
+        <span style="font-family:'Bangers'; font-size:18px; color:var(--c-yellow);">FLOW</span>
+        <span>生成 → HR 确认 → 一键全渠道分发</span>
+      </div>
+    </div>
+
+    <!-- 数据洞察 -->
+    <div class="panel sh-purple" style="background:linear-gradient(160deg,#fff,#f5e8ff);">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+        <span style="font-family:'Bangers'; font-size:56px; color:var(--c-purple); -webkit-text-stroke:2.5px var(--ink); line-height:1;">5.4</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:26px;">数据洞察 Dashboard</div>
+          <small class="lab">Text-to-SQL Agent · 归因引擎 · RAG</small>
+        </div>
+      </div>
+
+      <div style="padding:12px 14px; background:var(--ink); color:var(--paper); border-radius:10px; font-family:'SF Mono', monospace; font-size:13px; line-height:1.55;">
+        <span style="color:var(--c-green);">// 输入查询：</span><br/>
+        本季度哪个价值观维度参与度最低？
+      </div>
+
+      <div style="margin-top:12px; padding:14px 16px; background:#fff; border:2.5px solid var(--ink); border-radius:10px; font-size:14px; line-height:1.7;">
+        <b style="color:var(--c-purple);">AI 自动归因输出：</b><br/>
+        <b>『诚信务实』维度参与度 <span style="color:var(--c-red);">12%</span></b><br/>
+        远低于其他维度均值 28%。<br/><br/>
+        <b>主要原因：</b>该维度仅举办 2 场活动，<br/>均集中在 1 月。<br/><br/>
+        <b>建议：</b><br/>
+        ① 增加项目复盘类活动<br/>
+        ② 设置维度均衡补贴积分<br/>
+        ③ 关联现有 OKR 复盘流程<br/><br/>
+        <b style="color:var(--c-teal);">预测：</b>调整后参与度可回升至 <b>25%</b>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 10 · AI 亮点 ⑤ 价值观平衡引擎（新增） ========== -->
+<section class="slide" data-title="AI 亮点 ⑤ 价值观平衡">
+  <span class="slide-tag teal">CHAPTER 05 · 独家亮点</span>
+  <h2 class="title">5.5 AI 价值观平衡引擎</h2>
+  <p class="subtitle">业内首创 · 避免"年终复盘才发现某价值观全年只有 2 场活动"的运营盲区</p>
+
+  <div style="margin-top:20px; display:flex; gap:24px; flex:1;">
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="panel sh-teal">
+        <div class="panel-title"><span class="badge" style="background:var(--c-teal); color:#fff;">📊</span>4 大主动监测能力</div>
+
+        <div class="step"><span class="n" style="background:var(--c-orange);">A</span>
+          <span class="txt"><b>维度均衡度评分</b><br/>
+          <small style="color:#666;">基于活动数 / 参与人次 / 积分总量综合计算</small></span>
+        </div>
+        <div class="step"><span class="n" style="background:var(--c-red); color:#fff;">B</span>
+          <span class="txt"><b>失衡预警</b><br/>
+          <small style="color:#666;">某维度连续 N 周低于阈值时自动提醒</small></span>
+        </div>
+        <div class="step"><span class="n" style="background:var(--c-blue); color:#fff;">C</span>
+          <span class="txt"><b>活动建议</b><br/>
+          <small style="color:#666;">自动推荐补足该维度的活动模板</small></span>
+        </div>
+        <div class="step"><span class="n" style="background:var(--c-purple); color:#fff;">D</span>
+          <span class="txt"><b>HR-Agent 联动</b><br/>
+          <small style="color:#666;">HR 发布活动时，若选择已饱和维度，主动建议改投薄弱维度</small></span>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="panel sh-yellow" style="background:linear-gradient(160deg,#fff,#fff8e8);">
+        <div class="panel-title"><span class="badge">⚠️</span>失衡预警示例</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px;">
+          <div style="padding:10px; background:#fff5e8; border:2px solid var(--ink); border-radius:8px; text-align:center;">
+            <div style="font-family:'Bangers'; font-size:24px; color:var(--c-orange);">82%</div>
+            <div style="font-size:12px;">客户至上</div>
+          </div>
+          <div style="padding:10px; background:#e8f4ff; border:2px solid var(--ink); border-radius:8px; text-align:center;">
+            <div style="font-family:'Bangers'; font-size:24px; color:var(--c-blue);">76%</div>
+            <div style="font-size:12px;">团队协作</div>
+          </div>
+          <div style="padding:10px; background:#ffe8f0; border:2px solid var(--ink); border-radius:8px; text-align:center;">
+            <div style="font-family:'Bangers'; font-size:24px; color:var(--c-pink);">68%</div>
+            <div style="font-size:12px;">创新求变</div>
+          </div>
+          <div style="padding:10px; background:#ffe5e5; border:3px solid var(--c-red); border-radius:8px; text-align:center;">
+            <div style="font-family:'Bangers'; font-size:24px; color:var(--c-red);">12% ⚠</div>
+            <div style="font-size:12px;"><b>诚信务实</b></div>
+          </div>
+          <div style="padding:10px; background:#f5e8ff; border:2px solid var(--ink); border-radius:8px; text-align:center;">
+            <div style="font-family:'Bangers'; font-size:24px; color:var(--c-purple);">71%</div>
+            <div style="font-size:12px;">极致专注</div>
+          </div>
+          <div style="padding:10px; background:#fffce0; border:2px solid var(--ink); border-radius:8px; text-align:center;">
+            <div style="font-family:'Bangers'; font-size:24px; color:#b8932b;">79%</div>
+            <div style="font-size:12px;">学习成长</div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; padding:10px 14px; background:#ffe5e5; border:2px solid var(--c-red); border-radius:8px; font-size:14px;">
+          <b style="color:var(--c-red);">🚨 系统预警：</b>诚信务实维度参与度连续 6 周低于 20% 阈值
+        </div>
+      </div>
+
+      <div class="panel sh-blue">
+        <div class="panel-title" style="font-size:20px;"><span class="badge" style="background:var(--c-blue); color:#fff;">💎</span>核心价值</div>
+        <div style="font-size:var(--fs-card); line-height:1.65;">
+          把 HR 从"<span style="color:#888;">回顾式被动管理</span>"变成"<span class="kw-red">前瞻式主动运营</span>"
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 11 · AI 亮点 ⑥⑦⑧ ========== -->
+<section class="slide" data-title="AI 亮点 ⑥⑦⑧">
+  <span class="slide-tag orange">CHAPTER 05 · 补充亮点</span>
+  <h2 class="title">5.6 盲盒主持 · 5.7 跨企业指数 · 5.8 反作弊</h2>
+
+  <div class="grid-3" style="margin-top:24px; flex:1; gap:18px;">
+
+    <div class="panel sh-pink" style="background:linear-gradient(160deg,#fff,#ffeef5);">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span style="font-family:'Bangers'; font-size:42px; color:var(--c-pink); -webkit-text-stroke:2px var(--ink); line-height:1;">5.6</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:22px;">盲盒互动主持</div>
+          <small class="lab">商城趣味性 / 传播性</small>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin:14px 0;">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <ellipse cx="60" cy="55" rx="38" ry="40" fill="#ffd4e5" stroke="#1a1a1a" stroke-width="2.5"/>
+          <ellipse cx="60" cy="60" rx="28" ry="32" fill="#fff4e8" stroke="#1a1a1a" stroke-width="2.5"/>
+          <path d="M 30 50 Q 32 30 60 28 Q 88 30 90 50 Q 78 45 60 50 Q 42 45 30 50 Z" fill="#ffd4e5" stroke="#1a1a1a" stroke-width="2.5"/>
+          <ellipse cx="50" cy="62" rx="5" ry="7" fill="#1a1a1a"/>
+          <ellipse cx="70" cy="62" rx="5" ry="7" fill="#1a1a1a"/>
+          <circle cx="52" cy="60" r="2" fill="#fff"/>
+          <circle cx="72" cy="60" r="2" fill="#fff"/>
+          <path d="M 54 78 Q 60 84 66 78" stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <circle cx="90" cy="85" r="8" fill="var(--c-red)" stroke="#1a1a1a" stroke-width="2"/>
+          <rect x="87" y="93" width="6" height="14" fill="#1a1a1a"/>
+        </svg>
+      </div>
+
+      <ul style="font-size:var(--fs-sm); line-height:1.75; padding-left:20px;">
+        <li><b>Live2D 形象</b>动态呈现</li>
+        <li><b>TTS 语音</b>实时合成</li>
+        <li><b>LLM 文案</b>基于中奖结果 + 员工历史行为生成</li>
+      </ul>
+
+      <div style="margin-top:10px; padding:10px 12px; background:#fff; border:2px solid var(--ink); border-radius:8px; font-size:13px;">
+        <b style="color:var(--c-pink);">技术栈：</b>Live2D Cubism + 火山 TTS + Claude
+      </div>
+    </div>
+
+    <div class="panel sh-blue" style="background:linear-gradient(160deg,#fff,#e8f4ff);">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span style="font-family:'Bangers'; font-size:42px; color:var(--c-blue); -webkit-text-stroke:2px var(--ink); line-height:1;">5.7</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:22px;">跨企业文化指数</div>
+          <small class="lab">行业级文化对标</small>
+        </div>
+      </div>
+
+      <div style="background:#fff; border:2px solid var(--ink); border-radius:8px; padding:10px; margin-top:10px;">
+        <div style="font-size:12px; color:#666; margin-bottom:6px;">🏆 互联网赛道 · 团队协作维度</div>
+        <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:14px; border-bottom:1px dashed #ddd;"><span>🥇 互联网 A 厂</span><b>91.2</b></div>
+        <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:14px; border-bottom:1px dashed #ddd;"><span>🥈 互联网 B 厂</span><b>89.5</b></div>
+        <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:14px; background:var(--c-yellow); padding-left:6px;"><span>🥉 <b>我司</b></span><b>87.2</b></div>
+        <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:14px;"><span>4. 互联网 D 厂</span><b>82.1</b></div>
+      </div>
+
+      <ul style="font-size:var(--fs-sm); line-height:1.75; padding-left:20px; margin-top:10px;">
+        <li>企业自愿 opt-in 接入</li>
+        <li>仅展示匿名代号 + 指数</li>
+        <li><b>按维度跨企业对标</b></li>
+        <li>形成行业价值观图谱</li>
+      </ul>
+    </div>
+
+    <div class="panel sh-purple" style="background:linear-gradient(160deg,#fff,#f5e8ff);">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span style="font-family:'Bangers'; font-size:42px; color:var(--c-purple); -webkit-text-stroke:2px var(--ink); line-height:1;">5.8</span>
+        <div>
+          <div style="font-family:'ZCOOL QingKe HuangYou'; font-size:22px;">AI 反作弊检测</div>
+          <small class="lab">实时异常监测</small>
+        </div>
+      </div>
+
+      <div style="margin-top:10px; padding:12px; background:#fff; border:2px dashed var(--c-red); border-radius:8px;">
+        <div style="font-size:12px; color:var(--c-red); font-weight:bold; margin-bottom:6px;">⚠️ 异常监测维度</div>
+        <ul style="font-size:13px; line-height:1.7; padding-left:18px;">
+          <li>同 IP 多次扫码</li>
+          <li>部门积分异常膨胀</li>
+          <li>兑换频次异常</li>
+          <li>非工作时段密集操作</li>
+        </ul>
+      </div>
+
+      <div style="margin-top:12px; padding:10px 12px; background:var(--ink); color:var(--paper); border-radius:8px; font-size:13px; line-height:1.6;">
+        <b style="color:var(--c-yellow);">技术管道：</b><br/>规则引擎 + 孤立森林算法<br/>→ LLM 生成可读工单<br/>→ HR 一键审核处置
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:18px; padding:14px 22px; background:var(--ink); color:var(--paper); border-radius:12px; display:flex; gap:18px; align-items:center;">
+    <span class="shout" style="flex-shrink:0;">8 大 AI 模块</span>
+    <span style="font-size:16px;">HR-Agent · MCP · 内容生成 · 数据洞察 · <span style="color:var(--c-yellow);"><b>价值观平衡</b></span> · 盲盒主持 · 跨企业 · 反作弊</span>
+  </div>
+</section>
+
+<!-- ========== 12 · 钉钉深度集成 ========== -->
+<section class="slide" data-title="钉钉深度集成">
+  <span class="slide-tag green">CHAPTER 06</span>
+  <h2 class="title">钉钉深度集成 · 已核验官方 API 边界</h2>
+  <p class="subtitle">基于钉钉开放平台官方文档核验，明确能做、不能做、需注意的边界</p>
+
+  <div style="margin-top:20px; display:flex; gap:20px; flex:1;">
+    <div style="flex:1.6;">
+      <table class="comic">
+        <thead>
+          <tr><th style="width:24%;">✅ 实施清单</th><th>用法</th><th style="width:26%;">钉钉 API</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="tag">活动日程</td><td>自动创建日程并邀请员工，<b>接受=报名意向</b></td><td>日历 API</td></tr>
+          <tr><td class="tag">互动卡片</td><td>群内/个人推送可点击报名卡片</td><td>互动卡片 + 回调</td></tr>
+          <tr><td class="tag">工作通知</td><td>个人级活动/中奖/积分通知</td><td>asyncsend_v2</td></tr>
+          <tr><td class="tag">群机器人</td><td>部门群周报、月榜、获奖播报</td><td>自定义机器人 webhook</td></tr>
+          <tr><td class="tag">OA 审批</td><td>积分异议申诉、大额调整走标准审批流</td><td>审批流 API</td></tr>
+          <tr><td class="tag">工作台卡片</td><td>钉钉首页"我的积分"一屏直达</td><td>自定义工作台</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="panel sh-orange" style="background:#fff8e8;">
+        <div class="panel-title" style="font-size:20px;"><span class="badge" style="background:var(--c-orange);">⚠️</span>谨慎使用</div>
+        <p style="font-size:var(--fs-card); line-height:1.7;">
+          <b>DING 强提醒：</b>仅企业自建应用 + 专业版有配额，限<span class="kw">关键事件</span>使用（中奖通知、异议结果）
+        </p>
+      </div>
+
+      <div class="panel sh-red" style="background:#fff0f0;">
+        <div class="panel-title" style="font-size:20px;"><span class="badge" style="background:var(--c-red); color:#fff;">❌</span>自建模块</div>
+        <p style="font-size:var(--fs-card); line-height:1.7;">
+          <b>签到模块自研：</b>钉钉考勤 API 仅只读，<br/>
+          自建 H5 + 二维码动态刷新 + GPS / WiFi 围栏 + <span class="kw-red">防代签随机校验</span>
+        </p>
+      </div>
+
+      <div class="panel sh-blue" style="background:#e8f4ff;">
+        <div class="panel-title" style="font-size:20px;"><span class="badge" style="background:var(--c-blue); color:#fff;">💰</span>配额预算</div>
+        <p style="font-size:var(--fs-card); line-height:1.7;">
+          按 <b>钉钉专业版（50 万次 API/月）</b> 预算<br/>
+          标准版（1 万次/月）<span style="color:var(--c-red);">无法支撑日常运营</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 13 · 业务流程图 ========== -->
+<section class="slide" data-title="业务流程图">
+  <span class="slide-tag blue">CHAPTER 07</span>
+  <h2 class="title">关键业务流程 · 活动发布到积分入账</h2>
+  <p class="subtitle">价值观维度贯穿全流程 · 自动化覆盖率 > 80%</p>
+
+  <div class="diagram" style="margin-top:18px;">
+    <div class="mermaid">
+flowchart TD
+    A[HR 通过 Agent 发布活动<br/>选择价值观维度] --> B[Agent 编排执行]
+    B --> C[建活动记录<br/>绑定维度标签]
+    B --> D[钉钉日历 API<br/>给员工建日程]
+    B --> E[群机器人播报]
+    B --> F[互动卡片个人推送]
+
+    D --> G{员工日程响应}
+    F --> G
+    G -->|接受| H[标记报名]
+    G -->|拒绝| I[标记弃权]
+    G -->|未响应| J[活动前 1h 卡片再催]
+    J --> G
+
+    H --> K[活动当日<br/>员工到场扫二维码]
+    K --> L[自研签到服务校验<br/>GPS+二维码+随机题]
+    L -->|通过| M[积分服务加分<br/>按维度记账]
+    L -->|失败| N[标记异常待审]
+
+    M --> O{是否触发<br/>维度成就}
+    O -->|是| P[徽章服务颁发徽章]
+    O -->|否| Q[流程结束]
+    P --> R[钉钉卡片通知<br/>徽章入文化护照]
+
+    style A fill:#ffd93d,stroke:#1a1a1a,stroke-width:3px
+    style L fill:#6dd5a3,stroke:#1a1a1a,stroke-width:3px
+    style M fill:#4facfe,stroke:#1a1a1a,stroke-width:3px,color:#fff
+    style B fill:#ff7eb3,stroke:#1a1a1a,stroke-width:2px
+    style P fill:#a55eea,stroke:#1a1a1a,stroke-width:2px,color:#fff
+    </div>
+  </div>
+</section>
+
+<!-- ========== 14 · 架构图（手绘分层版） ========== -->
+<section class="slide" data-title="整体架构">
+  <span class="slide-tag purple">CHAPTER 08</span>
+  <h2 class="title">整体架构 · 五层清晰分层</h2>
+  <p class="subtitle">★ MCP Server · ★ HR-Agent · ★ 价值观引擎 · ★ 自研签到 = 核心四发动机</p>
+
+  <style>
+    .arch { flex:1; display:flex; flex-direction:column; gap:10px; margin-top:14px; position:relative; }
+    .arch-layer {
+      display:flex; align-items:stretch; gap:10px;
+      border:2.5px solid var(--ink); border-radius:12px;
+      padding:10px 12px;
+      box-shadow:4px 4px 0 var(--ink);
+      position:relative;
+    }
+    .arch-label {
+      flex-shrink:0;
+      width:88px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:var(--ink); color:var(--paper);
+      border-radius:8px;
+      padding:6px 4px;
+    }
+    .arch-label .ln { font-family:'Bangers'; font-size:22px; letter-spacing:1px; }
+    .arch-label .lt { font-family:'ZCOOL KuaiLe'; font-size:13px; margin-top:2px; }
+    .arch-nodes { flex:1; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .node {
+      padding:8px 14px;
+      background:var(--paper);
+      border:2.5px solid var(--ink);
+      border-radius:8px;
+      font-family:'ZCOOL KuaiLe';
+      font-size:15px;
+      box-shadow:2px 2px 0 var(--ink);
+      display:inline-flex; align-items:center; gap:6px;
+    }
+    .node .ic { font-size:16px; }
+    .node.star { background:var(--c-yellow); }
+    .node.core { background:var(--c-teal); color:#fff; }
+    .node.green { background:var(--c-green); }
+    .node.db { border-radius:50% / 35%; padding:8px 18px; }
+    .layer-1 { background:linear-gradient(135deg, #fff5e8, #fff); }
+    .layer-2 { background:linear-gradient(135deg, #e8f4ff, #fff); }
+    .layer-3 { background:linear-gradient(135deg, #ffeef5, #fff); }
+    .layer-4 { background:linear-gradient(135deg, #e8fffb, #fff); }
+    .layer-5 { background:linear-gradient(135deg, #f5e8ff, #fff); }
+    .arrow-down {
+      text-align:center; font-family:'Bangers'; font-size:22px;
+      color:var(--c-red); line-height:1; margin:-4px 0;
+    }
+    .legend {
+      display:flex; gap:14px; justify-content:center; align-items:center;
+      padding:10px 16px; background:#fff; border:2.5px dashed var(--ink); border-radius:10px;
+      font-size:13px;
+    }
+    .legend .lg { display:inline-flex; align-items:center; gap:6px; }
+    .legend .sw { width:14px; height:14px; border:2px solid var(--ink); border-radius:3px; display:inline-block; }
+  </style>
+
+  <div class="arch">
+    <!-- Layer 1 接入层 -->
+    <div class="arch-layer layer-1">
+      <div class="arch-label" style="background:var(--c-orange);">
+        <div class="ln">L1</div><div class="lt">接入层</div>
+      </div>
+      <div class="arch-nodes">
+        <div class="node"><span class="ic">📱</span>钉钉工作台 / H5</div>
+        <div class="node"><span class="ic">💻</span>HR 后台</div>
+        <div class="node"><span class="ic">🤖</span>外部 AI 客户端 · Claude Desktop / ChatGPT / Cursor</div>
+      </div>
+    </div>
+    <div class="arrow-down">▼</div>
+
+    <!-- Layer 2 开放层 -->
+    <div class="arch-layer layer-2">
+      <div class="arch-label" style="background:var(--c-blue);">
+        <div class="ln">L2</div><div class="lt">开放层</div>
+      </div>
+      <div class="arch-nodes">
+        <div class="node"><span class="ic">🔗</span>REST OpenAPI · OAuth</div>
+        <div class="node star"><span class="ic">★</span>MCP Server · 对外能力开放</div>
+      </div>
+    </div>
+    <div class="arrow-down">▼</div>
+
+    <!-- Layer 3 AI 智能体层 -->
+    <div class="arch-layer layer-3">
+      <div class="arch-label" style="background:var(--c-pink);">
+        <div class="ln">L3</div><div class="lt">AI 智能体</div>
+      </div>
+      <div class="arch-nodes">
+        <div class="node star"><span class="ic">★</span>HR-Agent 编排器</div>
+        <div class="node core"><span class="ic">⚖️</span>价值观平衡 Agent</div>
+        <div class="node"><span class="ic">📊</span>洞察 Agent</div>
+        <div class="node"><span class="ic">✍️</span>内容生成</div>
+        <div class="node"><span class="ic">🛡️</span>反作弊 Agent</div>
+      </div>
+    </div>
+    <div class="arrow-down">▼</div>
+
+    <!-- Layer 4 应用层 -->
+    <div class="arch-layer layer-4">
+      <div class="arch-label" style="background:var(--c-teal);">
+        <div class="ln">L4</div><div class="lt">应用层</div>
+      </div>
+      <div class="arch-nodes">
+        <div class="node core"><span class="ic">🎯</span>价值观引擎 · 维度配置 / 均衡分析</div>
+        <div class="node"><span class="ic">💰</span>积分服务 · 维度记账 · TCC</div>
+        <div class="node"><span class="ic">📅</span>活动服务</div>
+        <div class="node"><span class="ic">🎁</span>商城 / 盲盒</div>
+        <div class="node green"><span class="ic">★</span>自研签到 · H5+二维码+GPS</div>
+        <div class="node"><span class="ic">🏅</span>成就 / 徽章</div>
+      </div>
+    </div>
+    <div class="arrow-down">▼</div>
+
+    <!-- Layer 5 基础设施层（横向并列三块） -->
+    <div class="arch-layer layer-5" style="padding:0; border:none; box-shadow:none; background:transparent; gap:10px;">
+      <div style="flex:1; border:2.5px solid var(--ink); border-radius:12px; padding:10px 12px; background:linear-gradient(135deg, #f5e8ff, #fff); box-shadow:4px 4px 0 var(--ink); display:flex; gap:10px;">
+        <div class="arch-label" style="background:var(--c-purple); width:72px;">
+          <div class="ln" style="font-size:18px;">钉钉</div><div class="lt" style="font-size:11px;">集成</div>
+        </div>
+        <div class="arch-nodes">
+          <div class="node" style="font-size:13px; padding:6px 10px;">日程</div>
+          <div class="node" style="font-size:13px; padding:6px 10px;">卡片</div>
+          <div class="node" style="font-size:13px; padding:6px 10px;">通知</div>
+          <div class="node" style="font-size:13px; padding:6px 10px;">机器人</div>
+          <div class="node" style="font-size:13px; padding:6px 10px;">审批</div>
+          <div class="node" style="font-size:13px; padding:6px 10px;">工作台</div>
+        </div>
+      </div>
+      <div style="flex:0.85; border:2.5px solid var(--ink); border-radius:12px; padding:10px 12px; background:linear-gradient(135deg, #fffce0, #fff); box-shadow:4px 4px 0 var(--ink); display:flex; gap:10px;">
+        <div class="arch-label" style="background:#b8932b; width:72px;">
+          <div class="ln" style="font-size:18px;">模型</div><div class="lt" style="font-size:11px;">Models</div>
+        </div>
+        <div class="arch-nodes">
+          <div class="node" style="font-size:13px; padding:6px 10px;">Claude / GPT</div>
+          <div class="node" style="font-size:13px; padding:6px 10px;">通义万相</div>
+          <div class="node" style="font-size:13px; padding:6px 10px;">TTS</div>
+        </div>
+      </div>
+      <div style="flex:0.9; border:2.5px solid var(--ink); border-radius:12px; padding:10px 12px; background:linear-gradient(135deg, #e8fff0, #fff); box-shadow:4px 4px 0 var(--ink); display:flex; gap:10px;">
+        <div class="arch-label" style="background:var(--c-green); color:var(--ink); width:72px;">
+          <div class="ln" style="font-size:18px;">数据</div><div class="lt" style="font-size:11px;">多租户</div>
+        </div>
+        <div class="arch-nodes">
+          <div class="node db" style="font-size:13px;">🗄️ MySQL</div>
+          <div class="node db" style="font-size:13px;">⚡ Redis</div>
+          <div class="node db" style="font-size:13px;">🖼️ OSS</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图例 -->
+    <div class="legend">
+      <span class="lg"><span class="sw" style="background:var(--c-yellow);"></span>★ 核心亮点</span>
+      <span class="lg"><span class="sw" style="background:var(--c-teal);"></span>价值观相关</span>
+      <span class="lg"><span class="sw" style="background:var(--c-green);"></span>自研模块</span>
+      <span class="lg"><span class="sw" style="background:var(--paper);"></span>常规服务</span>
+      <span style="color:#666;">|</span>
+      <span style="color:#555;"><b>数据流向：</b>自上而下 · 上层调用下层</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 15 · 技术选型 ========== -->
+<section class="slide" data-title="技术选型">
+  <span class="slide-tag orange">CHAPTER 09</span>
+  <h2 class="title">技术选型 · 前后端全链路</h2>
+  <p class="subtitle">钉钉微应用 = 手机端 + 桌面端同源代码 · 一次开发双端运行</p>
+
+  <style>
+    .tech-section {
+      display:flex; align-items:center; gap:10px;
+      margin-top:14px; margin-bottom:8px;
+    }
+    .tech-section .label {
+      font-family:'Bangers'; font-size:18px; letter-spacing:2px;
+      padding:4px 12px; border:2.5px solid var(--ink); border-radius:6px;
+      box-shadow:2px 2px 0 var(--ink);
+    }
+    .tech-section .line {
+      flex:1; height:3px;
+      background:repeating-linear-gradient(90deg, var(--ink), var(--ink) 6px, transparent 6px, transparent 12px);
+    }
+    .card.compact { padding:12px 14px; }
+    .card.compact .ic { font-size:26px; margin-bottom:2px; }
+    .card.compact .tt { font-size:17px; margin-bottom:4px; }
+    .card.compact .dd { font-size:13px; line-height:1.5; }
+  </style>
+
+  <!-- 前端 4 项 -->
+  <div class="tech-section">
+    <span class="label" style="background:var(--c-pink); color:#fff;">FRONTEND · 前端</span>
+    <span class="line"></span>
+    <small style="color:#666;">钉钉 H5 微应用 · 同源跨端</small>
+  </div>
+  <div class="grid-4" style="gap:12px;">
+    <div class="card compact hi2">
+      <div class="ic">⚡</div>
+      <div class="tt">Vue 3 + Vite + TS</div>
+      <p class="dd"><small style="color:#666;">前端主框架</small><br/>组合式 API · 编译快 · 类型安全</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">📱</div>
+      <div class="tt">Vant 4</div>
+      <p class="dd"><small style="color:#999;">移动 UI · 钉钉 H5</small><br/>移动端原生体验，按需引入</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">🖥️</div>
+      <div class="tt">Element Plus</div>
+      <p class="dd"><small style="color:#999;">桌面 UI · HR 后台</small><br/>表格 / 表单 / 图表场景成熟</p>
+    </div>
+    <div class="card compact hi">
+      <div class="ic">🔗</div>
+      <div class="tt">dingtalk-jsapi</div>
+      <p class="dd"><small style="color:#666;">钉钉 JS 桥接</small><br/>统一手机 / 桌面端 API 调用</p>
+    </div>
+  </div>
+
+  <!-- 后端 4 项 -->
+  <div class="tech-section">
+    <span class="label" style="background:var(--c-blue); color:#fff;">BACKEND · 后端</span>
+    <span class="line"></span>
+    <small style="color:#666;">Go 单体二进制 · 静态部署</small>
+  </div>
+  <div class="grid-4" style="gap:12px;">
+    <div class="card compact">
+      <div class="ic">🌐</div>
+      <div class="tt">Gin</div>
+      <p class="dd"><small style="color:#999;">Web 框架</small><br/>Go 生态主流，性能高、上手快</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">🗄️</div>
+      <div class="tt">GORM + sqlx</div>
+      <p class="dd"><small style="color:#999;">ORM</small><br/>标准 ORM + 复杂查询场景</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">⚙️</div>
+      <div class="tt">asynq</div>
+      <p class="dd"><small style="color:#999;">任务队列</small><br/>基于 Redis · Go 主流</p>
+    </div>
+    <div class="card compact hi3">
+      <div class="ic">⚡</div>
+      <div class="tt" style="color:#fff;">MCP Server 自研</div>
+      <p class="dd" style="color:#fff;"><small style="color:#fff;">JSON-RPC over SSE</small><br/>官方 Go SDK 不稳，自研更轻</p>
+    </div>
+  </div>
+
+  <!-- AI / 集成 / 基础设施 8 项 -->
+  <div class="tech-section">
+    <span class="label" style="background:var(--c-teal); color:#fff;">AI · INTEGRATION · INFRA</span>
+    <span class="line"></span>
+    <small style="color:#666;">AI 模型 · 钉钉集成 · 基础设施</small>
+  </div>
+  <div class="grid-4" style="gap:12px;">
+    <div class="card compact hi">
+      <div class="ic">🧠</div>
+      <div class="tt">Claude 4.6 + DeepSeek V3</div>
+      <p class="dd"><small style="color:#666;">LLM</small><br/>Function Calling 强 + 降本</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">🎨</div>
+      <div class="tt">通义万相 / SD-XL</div>
+      <p class="dd"><small style="color:#999;">图像生成</small><br/>国内可用、API 简单</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">🔊</div>
+      <div class="tt">火山 / Edge-TTS</div>
+      <p class="dd"><small style="color:#999;">TTS</small><br/>中文表现好、成本可控</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">📲</div>
+      <div class="tt">alibabacloud-go/dingtalk</div>
+      <p class="dd"><small style="color:#999;">钉钉服务端 SDK</small><br/>钉钉官方维护</p>
+    </div>
+
+    <div class="card compact hi2">
+      <div class="ic">📍</div>
+      <div class="tt">签到自研</div>
+      <p class="dd"><small style="color:#666;">H5+二维码+GPS</small><br/>钉钉考勤 API 只读</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">🏢</div>
+      <div class="tt">共享库 + tenant_id</div>
+      <p class="dd"><small style="color:#999;">多租户</small><br/>演示与中小规模足够</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">📦</div>
+      <div class="tt">静态二进制 + Docker</div>
+      <p class="dd"><small style="color:#999;">部署</small><br/>镜像小、启动快</p>
+    </div>
+    <div class="card compact">
+      <div class="ic">💡</div>
+      <div class="tt">HTTP 直连 LLM</div>
+      <p class="dd"><small style="color:#999;">LLM SDK</small><br/>Anthropic 无官方 Go SDK</p>
+    </div>
+  </div>
+
+  <!-- 跨端说明条 -->
+  <div style="margin-top:14px; padding:10px 18px; background:var(--ink); color:var(--paper); border-radius:10px; display:flex; gap:16px; align-items:center;">
+    <span class="shout pink" style="font-size:16px; padding:4px 12px; flex-shrink:0;">钉钉微应用</span>
+    <span style="font-size:14px; line-height:1.5;">
+      <b style="color:var(--c-yellow);">同源代码</b> · 通过 dingtalk-jsapi 在 <b>iOS / Android / Windows / macOS / Web</b> 五端统一运行 · 后台单独域名 + Element Plus
+    </span>
+  </div>
+</section>
+
+<!-- ========== 16 · 里程碑排期 ========== -->
+<section class="slide" data-title="里程碑排期">
+  <span class="slide-tag red">CHAPTER 10</span>
+  <h2 class="title">4 周开发排期 · 责任到天</h2>
+  <p class="subtitle">必保 / 次要 / 可砍 三级优先级 · 风险前置识别</p>
+
+  <div class="diagram" style="margin-top:18px;">
+    <div class="mermaid">
+gantt
+    title 开发排期（4 周）
+    dateFormat YYYY-MM-DD
+    section 基础设施
+    Go 项目骨架/多租户/权限     :a1, 2026-05-22, 2d
+    价值观引擎/维度配置          :a2, after a1, 2d
+    积分/活动/商品 CRUD          :a3, after a2, 3d
+    自研签到模块                 :a4, after a1, 4d
+    section AI 与开放
+    HR-Agent + MCP 工具集        :b1, 2026-05-29, 4d
+    对外 MCP Server + REST       :b2, after b1, 3d
+    AI 内容生成/价值观注入       :b3, after b1, 2d
+    section 集成与洞察
+    钉钉深度集成                 :c1, 2026-06-05, 4d
+    数据洞察 + 价值观平衡引擎    :c2, after c1, 3d
+    跨企业指数榜                 :c3, after c2, 3d
+    section 收尾
+    钉钉工作台卡片               :d1, 2026-06-12, 2d
+    盲盒主持 + 反作弊            :d2, after d1, 3d
+    Demo 录制 + 路演彩排         :d3, after d2, 2d
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-top:14px; gap:14px;">
+    <div class="panel sh-green" style="padding:14px 18px;">
+      <div style="font-family:'Bangers'; font-size:16px; color:var(--c-green); letter-spacing:1.5px;">★ 必保（MUST）</div>
+      <div style="font-size:var(--fs-sm); margin-top:6px; line-height:1.6;">HR-Agent · 开放 MCP · 价值观引擎 · 自研签到 · 钉钉日程+卡片+群机器人</div>
+    </div>
+    <div class="panel sh-orange" style="padding:14px 18px;">
+      <div style="font-family:'Bangers'; font-size:16px; color:var(--c-orange); letter-spacing:1.5px;">▲ 次要（SHOULD）</div>
+      <div style="font-size:var(--fs-sm); margin-top:6px; line-height:1.6;">盲盒主持 · AI 内容生成</div>
+    </div>
+    <div class="panel sh-red" style="padding:14px 18px;">
+      <div style="font-family:'Bangers'; font-size:16px; color:var(--c-red); letter-spacing:1.5px;">○ 可砍（COULD）</div>
+      <div style="font-size:var(--fs-sm); margin-top:6px; line-height:1.6;">反作弊 · 跨企业指数（保留最小演示版本）</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 17 · Demo 脚本 ========== -->
+<section class="slide" data-title="Demo 演示脚本">
+  <span class="slide-tag blue">CHAPTER 11</span>
+  <h2 class="title">Demo 演示脚本 · 总时长 6 分钟</h2>
+  <p class="subtitle">按 8 段式编排，可根据现场压缩至 5 分钟</p>
+
+  <div style="margin-top:20px; flex:1; display:flex; flex-direction:column; gap:10px;">
+    <div style="display:flex; gap:12px; align-items:center; padding:10px 14px; background:#fff; border:2.5px solid var(--ink); border-radius:10px; box-shadow:3px 3px 0 var(--ink);">
+      <span style="font-family:'Bangers'; font-size:24px; color:var(--c-red); -webkit-text-stroke:1.5px var(--ink); flex-shrink:0; width:32px; text-align:center;">①</span>
+      <span style="background:var(--ink); color:#fff; padding:3px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0;">30s</span>
+      <span style="font-size:var(--fs-card);"><b>痛点呈现：</b>Excel 管理截图与负数积分实例</span>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:center; padding:10px 14px; background:#fff5e8; border:2.5px solid var(--ink); border-radius:10px; box-shadow:3px 3px 0 var(--ink);">
+      <span style="font-family:'Bangers'; font-size:24px; color:var(--c-orange); -webkit-text-stroke:1.5px var(--ink); flex-shrink:0; width:32px; text-align:center;">②</span>
+      <span style="background:var(--c-orange); color:#fff; padding:3px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">60s</span>
+      <span style="font-size:var(--fs-card);"><b>HR-Agent：</b>自然语言"发布团队协作维度活动" → 自动建活动+日程+卡片+群播报</span>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:center; padding:10px 14px; background:#ffe5e5; border:3px solid var(--c-red); border-radius:10px; box-shadow:3px 3px 0 var(--c-red);">
+      <span style="font-family:'Bangers'; font-size:24px; color:var(--c-red); -webkit-text-stroke:1.5px var(--ink); flex-shrink:0; width:32px; text-align:center;">③</span>
+      <span style="background:var(--c-red); color:#fff; padding:3px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">75s</span>
+      <span style="font-size:var(--fs-card);"><b>★ 开放 MCP：</b>Claude Desktop 连接 MCP Server，自然语言完成"查月度前 3 名 / 加分 / 颁发徽章"全链路</span>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:center; padding:10px 14px; background:#e8fff0; border:2.5px solid var(--ink); border-radius:10px; box-shadow:3px 3px 0 var(--ink);">
+      <span style="font-family:'Bangers'; font-size:24px; color:var(--c-green); -webkit-text-stroke:1.5px var(--ink); flex-shrink:0; width:32px; text-align:center;">④</span>
+      <span style="background:var(--c-green); color:#1a1a1a; padding:3px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">45s</span>
+      <span style="font-size:var(--fs-card);"><b>签到加分：</b>员工扫二维码 → 自研签到校验 → 积分入账 + 触发成就 → 钉钉通知</span>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:center; padding:10px 14px; background:#e8fffb; border:3px solid var(--c-teal); border-radius:10px; box-shadow:3px 3px 0 var(--c-teal);">
+      <span style="font-family:'Bangers'; font-size:24px; color:var(--c-teal); -webkit-text-stroke:1.5px var(--ink); flex-shrink:0; width:32px; text-align:center;">⑤</span>
+      <span style="background:var(--c-teal); color:#fff; padding:3px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">60s</span>
+      <span style="font-size:var(--fs-card);"><b>★ 价值观洞察：</b>自然语言查询"哪个维度参与度最低" → AI 给出归因与建议</span>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:center; padding:10px 14px; background:#ffeef5; border:2.5px solid var(--ink); border-radius:10px; box-shadow:3px 3px 0 var(--ink);">
+      <span style="font-family:'Bangers'; font-size:24px; color:var(--c-pink); -webkit-text-stroke:1.5px var(--ink); flex-shrink:0; width:32px; text-align:center;">⑥</span>
+      <span style="background:var(--c-pink); color:#fff; padding:3px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">60s</span>
+      <span style="font-size:var(--fs-card);"><b>盲盒抽奖：</b>扫码 → AI 主持人语音互动 → 中奖 → 流程闭环</span>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:center; padding:10px 14px; background:#e8f4ff; border:2.5px solid var(--ink); border-radius:10px; box-shadow:3px 3px 0 var(--ink);">
+      <span style="font-family:'Bangers'; font-size:24px; color:var(--c-blue); -webkit-text-stroke:1.5px var(--ink); flex-shrink:0; width:32px; text-align:center;">⑦</span>
+      <span style="background:var(--c-blue); color:#fff; padding:3px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0; border:2px solid var(--ink);">30s</span>
+      <span style="font-size:var(--fs-card);"><b>跨企业指数：</b>展示行业内价值观维度排名图谱</span>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:center; padding:10px 14px; background:#fff; border:2.5px solid var(--ink); border-radius:10px; box-shadow:3px 3px 0 var(--ink);">
+      <span style="font-family:'Bangers'; font-size:24px; color:var(--ink); -webkit-text-stroke:1.5px var(--ink); flex-shrink:0; width:32px; text-align:center;">⑧</span>
+      <span style="background:var(--ink); color:#fff; padding:3px 10px; font-family:'Bangers'; border-radius:4px; flex-shrink:0;">20s</span>
+      <span style="font-size:var(--fs-card);"><b>收尾：</b>架构概览与价值观映射模型回顾</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 18 · 风险应对 ========== -->
+<section class="slide" data-title="风险与应对">
+  <span class="slide-tag orange">CHAPTER 12</span>
+  <h2 class="title">风险识别与应对策略</h2>
+  <p class="subtitle">七大风险均已有明确应对方案</p>
+
+  <div class="grid-2" style="margin-top:20px; flex:1; gap:16px;">
+    <div class="panel sh-red">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--c-red); color:#fff;">⚡</span>钉钉专业版升级</div>
+      <p style="font-size:var(--fs-sm); line-height:1.65; color:#555;">
+        <b>风险：</b>标准版配额无法支撑日常运营<br/>
+        <b>应对：</b>路演明确说明配额预算，体现工程预判能力
+      </p>
+    </div>
+
+    <div class="panel sh-blue">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--c-blue); color:#fff;">🔌</span>MCP 客户端兼容</div>
+      <p style="font-size:var(--fs-sm); line-height:1.65; color:#555;">
+        <b>风险：</b>Claude Desktop 版本差异<br/>
+        <b>应对：</b>Demo 使用稳定版，关键场景预录视频备份
+      </p>
+    </div>
+
+    <div class="panel sh-orange">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--c-orange);">📍</span>签到防作弊</div>
+      <p style="font-size:var(--fs-sm); line-height:1.65; color:#555;">
+        <b>风险：</b>自研防作弊存在边界<br/>
+        <b>应对：</b>GPS + 二维码 + 随机题足够，深度方案纳入后续迭代
+      </p>
+    </div>
+
+    <div class="panel sh-purple">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--c-purple); color:#fff;">🌐</span>跨企业冷启动</div>
+      <p style="font-size:var(--fs-sm); line-height:1.65; color:#555;">
+        <b>风险：</b>缺少真实合作企业数据<br/>
+        <b>应对：</b>内置 3 家虚拟对手企业数据
+      </p>
+    </div>
+
+    <div class="panel sh-pink">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--c-pink); color:#fff;">🧠</span>LLM API 不稳定</div>
+      <p style="font-size:var(--fs-sm); line-height:1.65; color:#555;">
+        <b>风险：</b>路演现场调用超时<br/>
+        <b>应对：</b>主用 Claude，备 DeepSeek，关键链路预录
+      </p>
+    </div>
+
+    <div class="panel sh-green">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--c-green);">💎</span>Go MCP SDK 不成熟</div>
+      <p style="font-size:var(--fs-sm); line-height:1.65; color:#555;">
+        <b>风险：</b>缺少现成轮子<br/>
+        <b>应对：</b>自研轻量 JSON-RPC 实现，<span class="kw">作为技术亮点</span>
+      </p>
+    </div>
+
+    <div class="panel sh-teal" style="grid-column: span 2;">
+      <div class="panel-title" style="font-size:18px;"><span class="badge" style="background:var(--c-teal); color:#fff;">🎯</span>价值观维度配置主观性</div>
+      <p style="font-size:var(--fs-sm); line-height:1.65; color:#555;">
+        <b>风险：</b>不同企业对价值观的定义差异较大，易陷入"配什么维度都不对"<br/>
+        <b>应对：</b>提供 <b>6 大典型维度模板</b>（客户至上 / 团队协作 / 创新求变 / 诚信务实 / 极致专注 / 学习成长），企业可自定义但有最佳实践参考；远期开放"价值观模板市场"，行业最佳实践共享
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 19 · 远期演化路径 ========== -->
+<section class="slide" data-title="远期演化路径">
+  <span class="slide-tag purple">CHAPTER 13</span>
+  <h2 class="title">远期演化路径 · 三阶段战略</h2>
+  <p class="subtitle">从单企业落地 → 多企业 SaaS → 行业基础设施</p>
+
+  <div class="grid-3" style="margin-top:26px; flex:1; gap:20px;">
+    <div class="phase" style="background:linear-gradient(160deg, #fff, #fff5e8);">
+      <div class="ph-tag" style="background:var(--c-orange); color:#fff;">PHASE 1</div>
+      <div class="ph-name">单企业落地</div>
+      <div class="ph-time">⏱️ 当前阶段</div>
+      <ul>
+        <li>完整 AI 运营闭环</li>
+        <li>价值观维度体系</li>
+        <li>钉钉深度集成</li>
+        <li>HR-Agent + 开放 MCP</li>
+      </ul>
+      <div style="margin-top:12px; padding:10px 12px; background:#fff; border:2px dashed var(--c-orange); border-radius:8px; font-size:13px;">
+        <b>目标：</b>验证产品形态，沉淀首批最佳实践
+      </div>
+    </div>
+
+    <div class="phase" style="background:linear-gradient(160deg, #fff, #e8f4ff);">
+      <div class="ph-tag" style="background:var(--c-blue); color:#fff;">PHASE 2</div>
+      <div class="ph-name">多企业 SaaS 化</div>
+      <div class="ph-time">⏱️ 3-6 个月</div>
+      <ul>
+        <li>多租户能力上线</li>
+        <li>跨企业指数榜开放</li>
+        <li>价值观模板市场</li>
+        <li>行业最佳实践共享</li>
+      </ul>
+      <div style="margin-top:12px; padding:10px 12px; background:#fff; border:2px dashed var(--c-blue); border-radius:8px; font-size:13px;">
+        <b>目标：</b>规模化复制，启动行业数据网络效应
+      </div>
+    </div>
+
+    <div class="phase" style="background:linear-gradient(160deg, #fff, #f5e8ff);">
+      <div class="ph-tag" style="background:var(--c-purple); color:#fff;">PHASE 3</div>
+      <div class="ph-name">行业基础设施</div>
+      <div class="ph-time">⏱️ 12 个月+</div>
+      <ul>
+        <li>企业文化运营数据平台</li>
+        <li>行业价值观图谱定期发布</li>
+        <li>参与行业标准制定</li>
+        <li>与 HR 招聘 / 培训生态打通</li>
+      </ul>
+      <div style="margin-top:12px; padding:10px 12px; background:#fff; border:2px dashed var(--c-purple); border-radius:8px; font-size:13px;">
+        <b>目标：</b>成为中国企业文化运营的行业基础设施
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 20 · 数据模型附录 ========== -->
+<section class="slide" data-title="附录 · 数据模型">
+  <span class="slide-tag teal">APPENDIX</span>
+  <h2 class="title">价值观维度数据模型</h2>
+  <p class="subtitle">核心三张表：维度配置 · 积分流水（维度记账）· 维度积分快照</p>
+
+  <div style="margin-top:18px; display:flex; gap:20px; flex:1;">
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="codeblock" style="flex:1;">
+<span class="com">-- 价值观维度配置（租户级）</span>
+<span class="kwd">CREATE TABLE</span> <span class="typ">value_dimensions</span> (
+  id <span class="kwd">BIGINT PRIMARY KEY</span>,
+  tenant_id <span class="kwd">BIGINT NOT NULL</span>,
+  code <span class="kwd">VARCHAR</span>(<span class="num">32</span>) <span class="kwd">NOT NULL</span>,
+    <span class="com">-- 维度编码 e.g. customer_first</span>
+  name <span class="kwd">VARCHAR</span>(<span class="num">64</span>) <span class="kwd">NOT NULL</span>,
+  keywords <span class="kwd">VARCHAR</span>(<span class="num">255</span>),
+    <span class="com">-- 关键词 · 用于 AI Prompt 注入</span>
+  weight <span class="kwd">DECIMAL</span>(<span class="num">3</span>,<span class="num">2</span>) <span class="kwd">DEFAULT</span> <span class="num">1.00</span>,
+  sort_order <span class="kwd">INT DEFAULT</span> <span class="num">0</span>,
+  enabled <span class="kwd">TINYINT DEFAULT</span> <span class="num">1</span>,
+  <span class="kwd">UNIQUE KEY</span> uk_tenant_code (tenant_id, code)
+);
+      </div>
+
+      <div class="codeblock" style="flex:1.4;">
+<span class="com">-- 积分流水（维度记账）</span>
+<span class="kwd">CREATE TABLE</span> <span class="typ">point_transactions</span> (
+  id <span class="kwd">BIGINT PRIMARY KEY</span>,
+  tenant_id <span class="kwd">BIGINT NOT NULL</span>,
+  user_id <span class="kwd">BIGINT NOT NULL</span>,
+  dimension_id <span class="kwd">BIGINT NOT NULL</span>,
+    <span class="com">-- 价值观维度</span>
+  amount <span class="kwd">INT NOT NULL</span>,
+    <span class="com">-- 积分变动（正负）</span>
+  activity_id <span class="kwd">BIGINT</span>,
+  reason <span class="kwd">VARCHAR</span>(<span class="num">255</span>),
+  operator_id <span class="kwd">BIGINT</span>,
+  created_at <span class="kwd">TIMESTAMP</span>,
+  <span class="kwd">INDEX</span> idx_user_dim (user_id, dimension_id),
+  <span class="kwd">INDEX</span> idx_tenant_dim_time
+    (tenant_id, dimension_id, created_at)
+);
+      </div>
+    </div>
+
+    <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="codeblock" style="flex:1;">
+<span class="com">-- 员工维度积分快照</span>
+<span class="com">-- 用于雷达图与排行榜</span>
+<span class="kwd">CREATE TABLE</span> <span class="typ">user_dimension_scores</span> (
+  user_id <span class="kwd">BIGINT NOT NULL</span>,
+  tenant_id <span class="kwd">BIGINT NOT NULL</span>,
+  dimension_id <span class="kwd">BIGINT NOT NULL</span>,
+  total_score <span class="kwd">INT DEFAULT</span> <span class="num">0</span>,
+  quarter_score <span class="kwd">INT DEFAULT</span> <span class="num">0</span>,
+  year_score <span class="kwd">INT DEFAULT</span> <span class="num">0</span>,
+  updated_at <span class="kwd">TIMESTAMP</span>,
+  <span class="kwd">PRIMARY KEY</span> (user_id, dimension_id)
+);
+      </div>
+
+      <div class="panel sh-yellow">
+        <div class="panel-title" style="font-size:20px;"><span class="badge">🎯</span>设计要点</div>
+        <ul style="font-size:var(--fs-sm); line-height:1.8; padding-left:20px;">
+          <li><b>维度配置租户级</b>：每个企业可独立配置</li>
+          <li><b>流水必带维度</b>：保证每分都可追溯</li>
+          <li><b>快照表加速查询</b>：雷达图 / 排行榜性能保障</li>
+          <li><b>keywords 字段</b>：直接喂给 LLM Prompt</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 21 · 封底 ========== -->
+<section class="slide" data-title="致谢 / Q&A">
+  <div class="speed-bg"></div>
+  <div class="deco-star" style="top:60px; left:80px;">★</div>
+  <div class="deco-star" style="top:140px; left:200px; font-size:34px; color:var(--c-pink);">✦</div>
+  <div class="deco-star" style="bottom:140px; right:120px; color:var(--c-blue);">★</div>
+
+  <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:36px;">
+    <div style="text-align:center;">
+      <h1 class="bigtitle" style="font-size:130px; color:var(--c-red); text-shadow:6px 6px 0 var(--ink);">
+        谢谢
+      </h1>
+      <div style="margin-top:12px; font-family:'Bangers'; font-size:40px; letter-spacing:4px;">
+        Thank You !
+      </div>
+    </div>
+
+    <div style="display:flex; gap:30px; align-items:center;">
+      <svg width="120" height="160" viewBox="0 0 120 160">
+        <ellipse cx="60" cy="60" rx="40" ry="42" fill="#ff7eb3" stroke="#1a1a1a" stroke-width="3"/>
+        <ellipse cx="60" cy="65" rx="30" ry="34" fill="#fff4e8" stroke="#1a1a1a" stroke-width="2.5"/>
+        <ellipse cx="48" cy="68" rx="4" ry="5" fill="#1a1a1a"/>
+        <ellipse cx="72" cy="68" rx="4" ry="5" fill="#1a1a1a"/>
+        <path d="M 52 85 Q 60 92 68 85" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+        <path d="M 40 105 L 40 150 L 80 150 L 80 105" fill="#fff" stroke="#1a1a1a" stroke-width="2.5"/>
+        <text x="60" y="135" text-anchor="middle" font-family="Bangers" font-size="12">HR-AI</text>
+      </svg>
+
+      <svg width="120" height="160" viewBox="0 0 120 160">
+        <rect x="25" y="20" width="70" height="60" rx="14" fill="#4facfe" stroke="#1a1a1a" stroke-width="3"/>
+        <line x1="60" y1="20" x2="60" y2="10" stroke="#1a1a1a" stroke-width="2.5"/>
+        <circle cx="60" cy="8" r="3" fill="var(--c-red)" stroke="#1a1a1a" stroke-width="1.5"/>
+        <rect x="35" y="38" width="50" height="20" rx="4" fill="#1a1a1a"/>
+        <circle cx="48" cy="48" r="5" fill="var(--c-yellow)"/>
+        <circle cx="72" cy="48" r="5" fill="var(--c-yellow)"/>
+        <rect x="40" y="85" width="40" height="50" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="2.5"/>
+        <text x="60" y="115" text-anchor="middle" font-family="Bangers" font-size="14">MCP</text>
+      </svg>
+
+      <svg width="120" height="160" viewBox="0 0 120 160">
+        <circle cx="60" cy="55" r="40" fill="#38b6a8" stroke="#1a1a1a" stroke-width="3"/>
+        <text x="60" y="65" text-anchor="middle" font-family="ZCOOL QingKe HuangYou" font-size="32" fill="#fff">价</text>
+        <rect x="40" y="100" width="40" height="50" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="2.5"/>
+        <text x="60" y="120" text-anchor="middle" font-family="Bangers" font-size="11">VALUE</text>
+        <text x="60" y="138" text-anchor="middle" font-family="Bangers" font-size="11">ENGINE</text>
+      </svg>
+    </div>
+
+    <div style="display:flex; gap:20px;">
+      <span class="shout red" style="font-size:24px;">Q &amp; A</span>
+      <span class="shout" style="font-size:24px;">LIVE DEMO</span>
+      <span class="shout blue" style="font-size:24px;">DISCUSSION</span>
+    </div>
+
+    <div style="margin-top:20px; text-align:center; color:#666; font-size:14px; line-height:1.7;">
+      Culture Points Mall · AI Operating Platform<br/>
+      Standard Software Team · borak@gkkvip.cc
+    </div>
+  </div>
+
+  <div class="stamp" style="bottom:50px; right:50px; font-size:30px;">v5 · 2026</div>
+</section>
+
+</div>
+
+<div class="nav">
+  <button onclick="prev()">◀ PREV</button>
+  <span class="pageno" id="pageno">01 / 21</span>
+  <button onclick="next()">NEXT ▶</button>
+</div>
+
+<script>
+window.__initMermaid = function(){
+  if (!window.mermaid) return;
+  window.mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'ZCOOL KuaiLe, PingFang SC, sans-serif',
+      fontSize: '15px',
+      primaryColor: '#fffef8',
+      primaryTextColor: '#1a1a1a',
+      primaryBorderColor: '#1a1a1a',
+      lineColor: '#1a1a1a',
+      secondaryColor: '#ffd93d',
+      tertiaryColor: '#ff7eb3'
+    },
+    flowchart: { curve: 'basis', useMaxWidth: true },
+    gantt: { useMaxWidth: true, barHeight: 22, fontSize: 13 }
+  });
+  try { window.mermaid.run(); } catch(e){}
+};
+if (window.__mermaidReady) window.__initMermaid();
+
+const slides = document.querySelectorAll('.slide');
+let cur = 0;
+
+function show(i) {
+  slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+  cur = i;
+  document.getElementById('pageno').textContent =
+    String(i + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
+  document.getElementById('progress').style.width = ((i + 1) / slides.length * 100) + '%';
+}
+
+function next() { if (cur < slides.length - 1) show(cur + 1); }
+function prev() { if (cur > 0) show(cur - 1); }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+  if (e.key === 'Home') show(0);
+  if (e.key === 'End') show(slides.length - 1);
+  if (e.key === 'Escape') closeTOC();
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.toc-panel') || e.target.closest('.toc-btn')) return;
+  if (e.clientX < window.innerWidth / 3) prev();
+  else if (e.clientX > window.innerWidth * 2 / 3) next();
+});
+
+const tocList = document.getElementById('tocList');
+slides.forEach((s, i) => {
+  const a = document.createElement('a');
+  a.innerHTML = `<span class="no">${String(i+1).padStart(2,'0')}</span><span>${s.dataset.title || ('Slide ' + (i+1))}</span>`;
+  a.onclick = () => { show(i); closeTOC(); };
+  tocList.appendChild(a);
+});
+
+function toggleTOC() { document.getElementById('tocPanel').classList.toggle('show'); }
+function closeTOC() { document.getElementById('tocPanel').classList.remove('show'); }
+
+show(0);
+</script>
+
+</body>
+</html>
