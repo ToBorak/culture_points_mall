@@ -37,7 +37,7 @@ func main() {
 	mockDing := dingtalk.NewMock(db, bus)
 
 	valuesS := valuessvc.New(valuesrepo.New(db))
-	pointsS := pointssvc.New(db, pointsrepo.New(db), valuesS)
+	pointsS := pointssvc.New(db, pointsrepo.New(db), valuesS, nil)
 	lbS := lbsvc.New(db)
 	actS := activitiessvc.New(activitiesrepo.New(db), valuesS)
 	achvWrap := &achvsvc.Wrap{Inner: achvrepo.New(db)}

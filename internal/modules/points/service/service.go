@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	"github.com/standardsoftware/culture_points_mall/internal/modules/points/domain"
@@ -16,10 +18,11 @@ type Service struct {
 	DB     *gorm.DB
 	Repo   domain.Repository
 	Values *valuessvc.Service
+	Redis  *redis.Client
 }
 
-func New(db *gorm.DB, repo domain.Repository, values *valuessvc.Service) *Service {
-	return &Service{DB: db, Repo: repo, Values: values}
+func New(db *gorm.DB, repo domain.Repository, values *valuessvc.Service, rdb *redis.Client) *Service {
+	return &Service{DB: db, Repo: repo, Values: values, Redis: rdb}
 }
 
 type AddPointsCmd struct {
@@ -107,4 +110,51 @@ func (s *Service) ListTransactions(ctx context.Context, tenantID, userID, cursor
 		limit = 20
 	}
 	return s.Repo.ListTransactions(ctx, tenantID, userID, cursor, limit)
+}
+
+// TryFreeze 冻结用户的积分（不真扣分，只占位）。返回 txID。
+func (s *Service) TryFreeze(ctx context.Context, tenantID, userID int64, amount int, ttl time.Duration) (string, error) {
+	total, err := s.Repo.GetTotalScore(ctx, tenantID, userID)
+	if err != nil {
+		return "", err
+	}
+	if total < amount {
+		return "", fmt.Errorf("积分不足")
+	}
+	txID := fmt.Sprintf("tx-%d-%d-%d", userID, time.Now().UnixNano(), amount)
+	if s.Redis != nil {
+		ok, err := s.Redis.SetNX(ctx, "freeze:"+txID, amount, ttl).Result()
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			return "", fmt.Errorf("redis freeze conflict")
+		}
+	}
+	return txID, nil
+}
+
+// Confirm 真扣分（事务）
+func (s *Service) Confirm(ctx context.Context, tenantID, userID int64, amount int, dimID int64, reason string) error {
+	tx := &domain.Transaction{
+		TenantID: tenantID, UserID: userID, DimensionID: dimID,
+		Amount: -amount, Reason: reason,
+	}
+	return s.DB.WithContext(ctx).Transaction(func(_ *gorm.DB) error {
+		if err := s.Repo.InsertTransaction(ctx, tx); err != nil {
+			return err
+		}
+		if err := s.Repo.IncrementSnapshot(ctx, tenantID, userID, dimID, -amount); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// CancelByTxID 释放 Redis 冻结
+func (s *Service) CancelByTxID(ctx context.Context, txID string) error {
+	if s.Redis != nil {
+		return s.Redis.Del(ctx, "freeze:"+txID).Err()
+	}
+	return nil
 }

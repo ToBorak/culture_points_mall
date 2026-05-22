@@ -35,6 +35,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("mysql: %v", err)
 	}
+	redisClient, err := storage.NewRedis(cfg.Redis)
+	if err != nil {
+		log.Fatalf("redis: %v", err)
+	}
 	bus := dingtalk.NewBus()
 	mock := dingtalk.NewMock(db, bus)
 	var ding dingtalk.Client = mock
@@ -52,7 +56,7 @@ func main() {
 
 	// 装配 Agent 编排器
 	pointsRepo := pointsrepo.New(db)
-	pointsSvc := pointssvc.New(db, pointsRepo, vsvc)
+	pointsSvc := pointssvc.New(db, pointsRepo, vsvc, redisClient)
 	lbSvc := lbsvc.New(db)
 	actRepo := activitiesrepo.New(db)
 	actSvc := activitiessvc.New(actRepo, vsvc)
@@ -71,7 +75,7 @@ func main() {
 	aRepo := agentrepo.New(db)
 	agentH := agenthandler.New(orchestrator, aRepo)
 
-	r := router.Build(router.Deps{DB: db, Cfg: cfg, DingMock: mock, DingBus: bus, DingClient: ding, LLM: llmClient, AgentHandler: agentH})
+	r := router.Build(router.Deps{DB: db, Cfg: cfg, DingMock: mock, DingBus: bus, DingClient: ding, LLM: llmClient, AgentHandler: agentH, Redis: redisClient})
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("server starting on %s", addr)
 	if err := r.Run(addr); err != nil {

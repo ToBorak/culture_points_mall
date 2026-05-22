@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	"github.com/standardsoftware/culture_points_mall/internal/auth"
@@ -43,6 +44,7 @@ type Deps struct {
 	DingClient   dingtalk.Client
 	LLM          llm.Client
 	AgentHandler *agenthandler.Handler
+	Redis        *redis.Client
 }
 
 func Build(deps Deps) *gin.Engine {
@@ -52,7 +54,7 @@ func Build(deps Deps) *gin.Engine {
 	valuesRepo := valuesrepo.New(deps.DB)
 	valuesSvc := valuessvc.New(valuesRepo)
 	pointsRepo := pointsrepo.New(deps.DB)
-	pointsSvc := pointssvc.New(deps.DB, pointsRepo, valuesSvc)
+	pointsSvc := pointssvc.New(deps.DB, pointsRepo, valuesSvc, deps.Redis)
 
 	signer := &auth.Signer{Secret: []byte(deps.Cfg.JWT.Secret), TTL: time.Duration(deps.Cfg.JWT.TTLHours) * time.Hour}
 

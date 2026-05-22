@@ -93,7 +93,7 @@ func TestService_AddPoints_RealMySQL(t *testing.T) {
 
 	// 积分 service
 	pr := pointsrepo.New(testDB)
-	s := New(testDB, pr, vs)
+	s := New(testDB, pr, vs, nil)
 
 	tx, err := s.AddPoints(ctx, AddPointsCmd{
 		TenantID: 1,
