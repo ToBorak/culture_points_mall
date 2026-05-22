@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 
@@ -29,7 +30,11 @@ func main() {
 			log.Fatalf("migrate up: %v", err)
 		}
 	case "seed":
-		log.Println("seed not implemented yet · 将在 Phase 2 Task 2.16 实现完整 seed")
+		seeder := &migrate.Seeder{DB: db, DefaultTenantID: cfg.Seed.DefaultTenantID}
+		if err := seeder.Run(context.Background()); err != nil {
+			log.Fatalf("seed: %v", err)
+		}
+		log.Println("seed done")
 	default:
 		log.Fatalf("unknown action: %s", *action)
 	}
