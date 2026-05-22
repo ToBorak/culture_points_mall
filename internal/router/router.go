@@ -65,6 +65,12 @@ func Build(deps Deps) *gin.Engine {
 	signinRepo := signinrepo.New(deps.DB)
 	signinSvc := signinsvc.New(signinRepo, actSvc, pointsSvc, achvSvc, deps.Cfg.Signin.Secret, deps.Cfg.Signin.WindowSeconds)
 
+	// 开放组（含 admin 演示，正式生产应再加 admin role 校验）
+	open := r.Group("/")
+	valuesh.New(valuesSvc).Register(open)
+	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(open)
+	auth.NewHandler(deps.DB, deps.Cfg, deps.DingClient).Register(open)
+
 	// 受保护组
 	authed := r.Group("/", auth.RequireJWT(signer))
 	acth.New(actSvc).Register(authed)
@@ -73,16 +79,12 @@ func Build(deps Deps) *gin.Engine {
 	achvh.New(achvSvc).Register(authed)
 	passporth.New(pointsSvc, achvSvc).Register(authed)
 	lbh.New(lbsvc.New(deps.DB)).Register(authed)
-	signinh.New(signinSvc).Register(authed)
+	signinHandlerInst := signinh.New(signinSvc)
+	signinHandlerInst.Register(authed)
+	signinHandlerInst.RegisterWS(open)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(authed)
 	}
-
-	// 开放组（含 admin 演示，正式生产应再加 admin role 校验）
-	open := r.Group("/")
-	valuesh.New(valuesSvc).Register(open)
-	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(open)
-	auth.NewHandler(deps.DB, deps.Cfg, deps.DingClient).Register(open)
 
 	return r
 }

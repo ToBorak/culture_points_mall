@@ -89,4 +89,5 @@ require (
 	gorm.io/driver/mysql v1.5.7 // indirect
 	gorm.io/driver/sqlite v1.5.6 // indirect
 	gorm.io/gorm v1.25.10 // indirect
+	nhooyr.io/websocket v1.8.11 // indirect
 )
