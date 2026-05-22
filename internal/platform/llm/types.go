@@ -70,7 +70,8 @@ type MessagesResponse struct {
 type StreamEvent struct {
 	Type       string     `json:"type"`
 	Delta      string     `json:"delta,omitempty"`
-	Block      *Block     `json:"block,omitempty"`
+	ToolUse    *ToolUse   `json:"tool_use,omitempty"`
+	BlockIndex int        `json:"block_index,omitempty"`
 	StopReason StopReason `json:"stop_reason,omitempty"`
 	Err        error      `json:"-"`
 }

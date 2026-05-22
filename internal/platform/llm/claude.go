@@ -128,17 +128,45 @@ func decodeSSE(event, data string) StreamEvent {
 	switch event {
 	case "message_start":
 		return StreamEvent{Type: "message_start"}
-	case "content_block_start", "content_block_stop":
-		return StreamEvent{Type: event}
+	case "content_block_start":
+		var d struct {
+			Index        int `json:"index"`
+			ContentBlock struct {
+				Type  string         `json:"type"`
+				ID    string         `json:"id,omitempty"`
+				Name  string         `json:"name,omitempty"`
+				Input map[string]any `json:"input,omitempty"`
+			} `json:"content_block"`
+		}
+		_ = json.Unmarshal([]byte(data), &d)
+		if d.ContentBlock.Type == "tool_use" {
+			return StreamEvent{
+				Type:       "content_block_start",
+				BlockIndex: d.Index,
+				ToolUse:    &ToolUse{ID: d.ContentBlock.ID, Name: d.ContentBlock.Name, Input: d.ContentBlock.Input},
+			}
+		}
+		return StreamEvent{Type: "content_block_start", BlockIndex: d.Index}
 	case "content_block_delta":
 		var d struct {
+			Index int `json:"index"`
 			Delta struct {
-				Type string `json:"type"`
-				Text string `json:"text"`
+				Type        string `json:"type"`
+				Text        string `json:"text"`
+				PartialJSON string `json:"partial_json"`
 			} `json:"delta"`
 		}
 		_ = json.Unmarshal([]byte(data), &d)
-		return StreamEvent{Type: "content_block_delta", Delta: d.Delta.Text}
+		if d.Delta.Type == "input_json_delta" {
+			return StreamEvent{Type: "content_block_delta", BlockIndex: d.Index, Delta: d.Delta.PartialJSON}
+		}
+		return StreamEvent{Type: "content_block_delta", BlockIndex: d.Index, Delta: d.Delta.Text}
+	case "content_block_stop":
+		var d struct {
+			Index int `json:"index"`
+		}
+		_ = json.Unmarshal([]byte(data), &d)
+		return StreamEvent{Type: "content_block_stop", BlockIndex: d.Index}
 	case "message_delta":
 		var d struct {
 			Delta struct {
