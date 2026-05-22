@@ -11,6 +11,7 @@ import (
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
 
+	agenthandler "github.com/standardsoftware/culture_points_mall/internal/modules/agent/handler"
 	acth "github.com/standardsoftware/culture_points_mall/internal/modules/activities/handler"
 	actrepo "github.com/standardsoftware/culture_points_mall/internal/modules/activities/repository"
 	actsvc "github.com/standardsoftware/culture_points_mall/internal/modules/activities/service"
@@ -32,12 +33,13 @@ import (
 )
 
 type Deps struct {
-	DB         *gorm.DB
-	Cfg        *config.Config
-	DingMock   *dingtalk.MockClient
-	DingBus    *dingtalk.Bus
-	DingClient dingtalk.Client
-	LLM        llm.Client
+	DB           *gorm.DB
+	Cfg          *config.Config
+	DingMock     *dingtalk.MockClient
+	DingBus      *dingtalk.Bus
+	DingClient   dingtalk.Client
+	LLM          llm.Client
+	AgentHandler *agenthandler.Handler
 }
 
 func Build(deps Deps) *gin.Engine {
@@ -65,6 +67,9 @@ func Build(deps Deps) *gin.Engine {
 	achvh.New(achvSvc).Register(authed)
 	passporth.New(pointsSvc, achvSvc).Register(authed)
 	lbh.New(lbsvc.New(deps.DB)).Register(authed)
+	if deps.AgentHandler != nil {
+		deps.AgentHandler.Register(authed)
+	}
 
 	// 开放组（含 admin 演示，正式生产应再加 admin role 校验）
 	open := r.Group("/")
