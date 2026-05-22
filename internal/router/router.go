@@ -24,6 +24,9 @@ import (
 	pointsh "github.com/standardsoftware/culture_points_mall/internal/modules/points/handler"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
+	signinh "github.com/standardsoftware/culture_points_mall/internal/modules/signin/handler"
+	signinrepo "github.com/standardsoftware/culture_points_mall/internal/modules/signin/repository"
+	signinsvc "github.com/standardsoftware/culture_points_mall/internal/modules/signin/service"
 	usersh "github.com/standardsoftware/culture_points_mall/internal/modules/users/handler"
 	usersrepo "github.com/standardsoftware/culture_points_mall/internal/modules/users/repository"
 	usersvc "github.com/standardsoftware/culture_points_mall/internal/modules/users/service"
@@ -59,6 +62,9 @@ func Build(deps Deps) *gin.Engine {
 	actRepo := actrepo.New(deps.DB)
 	actSvc := actsvc.New(actRepo, valuesSvc)
 
+	signinRepo := signinrepo.New(deps.DB)
+	signinSvc := signinsvc.New(signinRepo, actSvc, pointsSvc, achvSvc, deps.Cfg.Signin.Secret, deps.Cfg.Signin.WindowSeconds)
+
 	// 受保护组
 	authed := r.Group("/", auth.RequireJWT(signer))
 	acth.New(actSvc).Register(authed)
@@ -67,6 +73,7 @@ func Build(deps Deps) *gin.Engine {
 	achvh.New(achvSvc).Register(authed)
 	passporth.New(pointsSvc, achvSvc).Register(authed)
 	lbh.New(lbsvc.New(deps.DB)).Register(authed)
+	signinh.New(signinSvc).Register(authed)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(authed)
 	}
