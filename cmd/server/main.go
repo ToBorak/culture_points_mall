@@ -22,6 +22,7 @@ import (
 	"github.com/standardsoftware/culture_points_mall/internal/modules/agent/tools"
 	lbsvc "github.com/standardsoftware/culture_points_mall/internal/modules/leaderboard/service"
 	mallrepo "github.com/standardsoftware/culture_points_mall/internal/modules/mall/repository"
+	mallsvc "github.com/standardsoftware/culture_points_mall/internal/modules/mall/service"
 	"github.com/standardsoftware/culture_points_mall/internal/modules/mall/worker"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
@@ -66,9 +67,11 @@ func main() {
 	achvSvcInst := achvsvc.New(&achvsvc.Wrap{Inner: achvrepo.New(db)}, pointsSvc, vsvc)
 
 	// 启动 TCC 兜底 sweeper（定时取消过期 freeze）
+	mRepo := mallrepo.New(db)
+	mallSvc := mallsvc.New(mRepo, pointsSvc, vsvc)
 	sweeperCtx, sweeperCancel := context.WithCancel(context.Background())
 	defer sweeperCancel()
-	sweeper := &worker.FreezeSweeper{Repo: mallrepo.New(db), Points: pointsSvc}
+	sweeper := &worker.FreezeSweeper{Repo: mRepo, Points: pointsSvc}
 	sweeper.Start(sweeperCtx, 5*time.Second)
 
 	toolReg := tools.NewRegistry()
@@ -78,6 +81,7 @@ func main() {
 		Leaderboard:  lbSvc,
 		Achievements: achvSvcInst,
 	})
+	tools.RegisterMall(toolReg, tools.MallDeps{Mall: mallSvc})
 	tools.RegisterDingtalk(toolReg, tools.DingDeps{Client: ding})
 
 	orchestrator := agentsvc.NewOrchestrator(llmClient, toolReg, vsvc)

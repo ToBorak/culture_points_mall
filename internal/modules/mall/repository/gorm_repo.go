@@ -32,6 +32,10 @@ func (r *GormRepo) GetItem(ctx context.Context, tenantID, id int64) (*domain.Ite
 	return &it, nil
 }
 
+func (r *GormRepo) CreateItem(ctx context.Context, it *domain.Item) error {
+	return r.DB.WithContext(ctx).Create(it).Error
+}
+
 func (r *GormRepo) ListPrizes(ctx context.Context, boxID int64) ([]domain.BlindboxPrize, error) {
 	var rows []domain.BlindboxPrize
 	err := r.DB.WithContext(ctx).Where("box_item_id = ?", boxID).Find(&rows).Error

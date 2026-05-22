@@ -18,6 +18,8 @@ import (
 	achvrepo "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/repository"
 	achvsvc "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/service"
 	lbsvc "github.com/standardsoftware/culture_points_mall/internal/modules/leaderboard/service"
+	mallrepo "github.com/standardsoftware/culture_points_mall/internal/modules/mall/repository"
+	mallsvc "github.com/standardsoftware/culture_points_mall/internal/modules/mall/service"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
 	valuesrepo "github.com/standardsoftware/culture_points_mall/internal/modules/values/repository"
@@ -42,9 +44,11 @@ func main() {
 	actS := activitiessvc.New(activitiesrepo.New(db), valuesS)
 	achvWrap := &achvsvc.Wrap{Inner: achvrepo.New(db)}
 	achvS := achvsvc.New(achvWrap, pointsS, valuesS)
+	mallS := mallsvc.New(mallrepo.New(db), pointsS, valuesS)
 
 	reg := tools.NewRegistry()
 	tools.RegisterBusiness(reg, tools.BusinessDeps{Activities: actS, Points: pointsS, Leaderboard: lbS, Achievements: achvS})
+	tools.RegisterMall(reg, tools.MallDeps{Mall: mallS})
 	tools.RegisterDingtalk(reg, tools.DingDeps{Client: mockDing})
 
 	r := gin.Default()

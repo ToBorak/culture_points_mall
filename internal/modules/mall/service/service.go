@@ -33,9 +33,46 @@ type DrawResult struct {
 }
 
 var (
-	ErrItemNotBlindbox = errors.New("item not blindbox")
-	ErrNoPrizes        = errors.New("no prizes configured")
+	ErrItemNotBlindbox  = errors.New("item not blindbox")
+	ErrNoPrizes         = errors.New("no prizes configured")
+	ErrInvalidItemType  = errors.New("type must be 'item' or 'blindbox'")
+	ErrInvalidItemName  = errors.New("name required")
+	ErrInvalidItemCost  = errors.New("cost must be > 0")
 )
+
+type CreateItemCmd struct {
+	TenantID int64
+	Type     string
+	Name     string
+	Cost     int
+	Stock    *int
+	ImageURL string
+}
+
+// CreateItem 新增积分商城商品（item 或 blindbox）
+func (s *Service) CreateItem(ctx context.Context, cmd CreateItemCmd) (*domain.Item, error) {
+	if cmd.Type != "item" && cmd.Type != "blindbox" {
+		return nil, ErrInvalidItemType
+	}
+	if strings.TrimSpace(cmd.Name) == "" {
+		return nil, ErrInvalidItemName
+	}
+	if cmd.Cost <= 0 {
+		return nil, ErrInvalidItemCost
+	}
+	it := &domain.Item{
+		TenantID: cmd.TenantID,
+		Type:     cmd.Type,
+		Name:     strings.TrimSpace(cmd.Name),
+		Cost:     cmd.Cost,
+		Stock:    cmd.Stock,
+		ImageURL: cmd.ImageURL,
+	}
+	if err := s.Repo.CreateItem(ctx, it); err != nil {
+		return nil, err
+	}
+	return it, nil
+}
 
 // Draw 抽奖完整 TCC 链路
 func (s *Service) Draw(ctx context.Context, tenantID, userID, boxID int64) (*DrawResult, error) {
