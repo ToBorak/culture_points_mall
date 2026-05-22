@@ -13,6 +13,9 @@ import (
 	pointsh "github.com/standardsoftware/culture_points_mall/internal/modules/points/handler"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
+	usersh "github.com/standardsoftware/culture_points_mall/internal/modules/users/handler"
+	usersrepo "github.com/standardsoftware/culture_points_mall/internal/modules/users/repository"
+	usersvc "github.com/standardsoftware/culture_points_mall/internal/modules/users/service"
 	valuesh "github.com/standardsoftware/culture_points_mall/internal/modules/values/handler"
 	valuesrepo "github.com/standardsoftware/culture_points_mall/internal/modules/values/repository"
 	valuessvc "github.com/standardsoftware/culture_points_mall/internal/modules/values/service"
@@ -40,6 +43,7 @@ func Build(deps Deps) *gin.Engine {
 	// 受保护组
 	authed := r.Group("/", auth.RequireJWT(signer))
 	pointsh.New(pointsSvc).Register(authed)
+	usersh.New(usersvc.New(usersrepo.New(deps.DB))).Register(authed)
 
 	// 开放组（含 admin 演示，正式生产应再加 admin role 校验）
 	open := r.Group("/")
