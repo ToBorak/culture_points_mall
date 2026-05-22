@@ -32,6 +32,9 @@ func (s *Seeder) Run(ctx context.Context) error {
 	if err := s.seedBlindboxPool(); err != nil {
 		return err
 	}
+	if err := s.seedDemoPoints(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -170,6 +173,34 @@ func (s *Seeder) seedBlindboxPool() error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func (s *Seeder) seedDemoPoints() error {
+	var existing int64
+	s.DB.Raw("SELECT COUNT(*) FROM point_transactions WHERE tenant_id = ?", s.DefaultTenantID).Scan(&existing)
+	if existing > 0 {
+		return nil
+	}
+	for uid := int64(1); uid <= 50; uid++ {
+		n := 3 + (uid % 6)
+		for i := int64(0); i < n; i++ {
+			dimID := (i % 6) + 1
+			amt := 10 + int(uid+i)*3
+			_ = s.DB.Exec(
+				`INSERT INTO point_transactions (tenant_id, user_id, dimension_id, amount, reason) VALUES (?, ?, ?, ?, ?)`,
+				s.DefaultTenantID, uid, dimID, amt, "演示加分",
+			).Error
+			_ = s.DB.Exec(`
+				INSERT INTO user_dimension_scores (user_id, tenant_id, dimension_id, total_score, quarter_score, year_score)
+				VALUES (?, ?, ?, ?, ?, ?)
+				ON DUPLICATE KEY UPDATE
+					total_score = total_score + VALUES(total_score),
+					quarter_score = quarter_score + VALUES(quarter_score),
+					year_score = year_score + VALUES(year_score)
+			`, uid, s.DefaultTenantID, dimID, amt, amt, amt).Error
 		}
 	}
 	return nil
