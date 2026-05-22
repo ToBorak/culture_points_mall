@@ -89,3 +89,7 @@ func (s *Service) ListMyBadges(ctx context.Context, tenantID, userID int64) ([]d
 	}
 	return all, owned, nil
 }
+
+func (s *Service) AwardBadge(ctx context.Context, userID, badgeID int64) error {
+	return s.Repo.Inner.AwardBadge(ctx, userID, badgeID)
+}
