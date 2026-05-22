@@ -10,6 +10,9 @@ import (
 	"github.com/standardsoftware/culture_points_mall/internal/config"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 
+	achvh "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/handler"
+	achvrepo "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/repository"
+	achvsvc "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/service"
 	pointsh "github.com/standardsoftware/culture_points_mall/internal/modules/points/handler"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
@@ -40,10 +43,14 @@ func Build(deps Deps) *gin.Engine {
 
 	signer := &auth.Signer{Secret: []byte(deps.Cfg.JWT.Secret), TTL: time.Duration(deps.Cfg.JWT.TTLHours) * time.Hour}
 
+	achvRepo := achvrepo.New(deps.DB)
+	achvSvc := achvsvc.New(&achvsvc.Wrap{Inner: achvRepo}, pointsSvc, valuesSvc)
+
 	// 受保护组
 	authed := r.Group("/", auth.RequireJWT(signer))
 	pointsh.New(pointsSvc).Register(authed)
 	usersh.New(usersvc.New(usersrepo.New(deps.DB))).Register(authed)
+	achvh.New(achvSvc).Register(authed)
 
 	// 开放组（含 admin 演示，正式生产应再加 admin role 校验）
 	open := r.Group("/")
