@@ -3,18 +3,35 @@ services:
     image: mysql:8.4.4
     container_name: cpm-mysql
     restart: unless-stopped
+    ports:
+      - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: cpm
-    ports: ["3306:3306"]
+      MYSQL_ROOT_HOST: "%"
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     volumes:
       - cpm-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
 
   redis:
     image: redis:7-alpine
     container_name: cpm-redis
     restart: unless-stopped
-    ports: ["6379:6379"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
 
 volumes:
   cpm-mysql: {}

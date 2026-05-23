@@ -2,18 +2,63 @@
 
 > 双 binary：`cmd/server`（HTTP :8080） + `cmd/mcp`（JSON-RPC over SSE :8090）
 
-## 快速启动
+## 🚀 一键启动（推荐）
+
+适合从零拉代码、本地没装过任何依赖的同学。**支持 macOS 与 Linux**（Windows 用户请走 WSL2）。
 
 ```bash
-make up                              # 启动 MySQL + Redis
+git clone <THIS_REPO>.git culture_points_mall
+cd culture_points_mall
+./bootstrap.sh
+```
+
+脚本会自动完成：
+1. 检测并安装 **Homebrew / Docker / Go / Node / pnpm**（macOS 走 brew，Linux 走 apt）
+2. 启动 **MySQL 8.4 + Redis 7**（Docker 容器）
+3. **重置数据库**：drop → migrate → seed 50 员工 + 24 徽章 + 商品 + 奖品池
+4. 克隆/检测前端仓库（默认在 `../culture_points_mall_web`）并 `pnpm install`
+5. 拉起 **后端 :8080 / MCP :8090 / H5 :5173 / Admin :5174**，浏览器自动打开
+
+> **首次克隆前端**：若同级目录没有前端仓库，需指定 git 地址
+> ```bash
+> FRONTEND_GIT=git@github.com:YOUR_ORG/culture-points-mall-web.git ./bootstrap.sh
+> ```
+>
+> **保留旧数据**：`./bootstrap.sh --no-reset`
+>
+> **不自动开浏览器**：`./bootstrap.sh --no-open`
+
+启动完成后访问：
+
+| 服务 | URL | 备注 |
+|---|---|---|
+| 员工 H5 | http://localhost:5173 | 自动钉钉模拟登录，新用户首登赠 100,000 积分 |
+| 管理后台 | http://localhost:5174 | User ID 输入 `1` 即可登录 |
+| 后端 API | http://localhost:8080/healthz | |
+| MCP 服务 | http://localhost:8090/mcp/sse | Bearer token 任意非空字符串 |
+
+如果要用 HR-Agent 自然语言聊天，编辑 `configs/config.yaml` 填入 LLM API Key
+（`llm.provider` 可选 `claude` / `openai` / `deepseek` / `qwen`）。
+
+## 常用命令
+
+```bash
+make help        # 列出全部命令
+make up          # 重启后端 + 前端进程（容器已在跑）
+make down        # 停止所有进程
+make reset       # 重置数据库（drop + migrate + seed）
+make logs        # 实时跟踪日志
+make ps          # 查看容器状态
+```
+
+## 仅本地开发（已搭好环境）
+
+```bash
+make up                              # 启动 MySQL + Redis 容器
 make migrate                         # 建表
-go run ./cmd/migrate -action=seed    # 灌入 50 员工 / 3 部门 / 24 徽章 / 5 商品 / 8 奖品 + 演示积分
-
-# 可选：配置 LLM API Key（HR-Agent 需要）
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-make run                             # HTTP :8080
-go run ./cmd/mcp                     # MCP :8090（另一终端）
+make seed                            # 灌入演示数据
+make dev                             # 前台运行后端 :8080
+go run ./cmd/mcp                     # 另一终端：MCP :8090
 ```
 
 ## 演示路径

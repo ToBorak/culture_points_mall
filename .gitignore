@@ -4,4 +4,5 @@ bin/
 .env.local
 .DS_Store
 tmp/
+.logs/
 configs/config.yaml
