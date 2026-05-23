@@ -9,6 +9,9 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/standardsoftware/culture_points_mall/internal/auth"
+
+	insightsh "github.com/standardsoftware/culture_points_mall/internal/modules/insights/handler"
+	insightsservice "github.com/standardsoftware/culture_points_mall/internal/modules/insights/service"
 	"github.com/standardsoftware/culture_points_mall/internal/config"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
@@ -117,6 +120,12 @@ func Build(deps Deps) *gin.Engine {
 	mallh.New(mallRepo, mallSvc).Register(authed)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(authed)
+	}
+
+	// AI 洞察（DNA 报告 / 教练 / 挑战 / 排行解读）
+	if deps.LLM != nil {
+		insightsSvc := insightsservice.New(deps.LLM, pointsSvc, valuesSvc, deps.DB, deps.Redis)
+		insightsh.New(insightsSvc).Register(authed)
 	}
 
 	return r
