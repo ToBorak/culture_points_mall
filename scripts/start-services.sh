@@ -92,6 +92,21 @@ wait_ready() {
   warn "$name 启动超时（$url），查看日志：$LOG_DIR"
 }
 
+# MCP 没有 /healthz，用未授权访问 /mcp/sse 返回 401 来判定服务在跑
+wait_ready_mcp() {
+  local url="$1"
+  for i in {1..30}; do
+    local code
+    code="$(curl -s -o /dev/null -w '%{http_code}' -m 2 "$url" 2>/dev/null || echo 0)"
+    if [[ "$code" == "401" ]]; then
+      ok "MCP 已就绪：$url（401 鉴权符合预期）"
+      return
+    fi
+    sleep 1
+  done
+  warn "MCP 启动超时（$url），查看日志：$LOG_DIR/mcp.log"
+}
+
 print_summary() {
   cat <<EOF
 
@@ -125,6 +140,7 @@ main() {
   start_backend
   start_mcp
   wait_ready "http://localhost:8080/healthz" backend
+  wait_ready_mcp "http://localhost:8090/mcp/sse"
   start_frontend
   wait_ready "http://localhost:5173/" h5
   wait_ready "http://localhost:5174/" admin

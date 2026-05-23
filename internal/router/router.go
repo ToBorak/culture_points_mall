@@ -101,8 +101,8 @@ func Build(deps Deps) *gin.Engine {
 		WithGranter(&welcomeGranter{points: pointsSvc, values: valuesSvc}).
 		Register(open)
 
-	// 受保护组
-	authed := r.Group("/", auth.RequireJWT(signer))
+	// 受保护组：JWT + 用户存在性校验（DB 重置后老 token 自动失效）
+	authed := r.Group("/", auth.RequireJWTWithUser(signer, deps.DB))
 	acth.New(actSvc).Register(authed)
 	pointsh.New(pointsSvc, valuesSvc).Register(authed)
 	usersh.New(usersvc.New(usersrepo.New(deps.DB))).Register(authed)
