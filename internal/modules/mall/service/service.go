@@ -49,6 +49,11 @@ type CreateItemCmd struct {
 	ImageURL string
 }
 
+// ListItems 列出商城商品；typ 为空字符串则列全部，否则按 type 过滤（item / blindbox）
+func (s *Service) ListItems(ctx context.Context, tenantID int64, typ string) ([]domain.Item, error) {
+	return s.Repo.ListItems(ctx, tenantID, typ)
+}
+
 // CreateItem 新增积分商城商品（item 或 blindbox）
 func (s *Service) CreateItem(ctx context.Context, cmd CreateItemCmd) (*domain.Item, error) {
 	if cmd.Type != "item" && cmd.Type != "blindbox" {

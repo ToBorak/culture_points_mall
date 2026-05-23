@@ -61,6 +61,45 @@ func (t CreateMallItemTool) Execute(ctx context.Context, in map[string]any) (map
 	}, nil
 }
 
+type ListMallItemsTool struct{ Deps MallDeps }
+
+func (ListMallItemsTool) Name() string { return "list_mall_items" }
+func (ListMallItemsTool) Description() string {
+	return "列出积分商城商品。type 可选 'item'（普通兑换）或 'blindbox'（盲盒），不传则列全部。"
+}
+func (ListMallItemsTool) InputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"type": map[string]any{"type": "string", "enum": []string{"", "item", "blindbox"}},
+		},
+	}
+}
+
+func (t ListMallItemsTool) Execute(ctx context.Context, in map[string]any) (map[string]any, error) {
+	tid := cpmctx.TenantID(ctx)
+	if tid == 0 {
+		tid = 1
+	}
+	rows, err := t.Deps.Mall.ListItems(ctx, tid, anyString(in["type"]))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]map[string]any, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, map[string]any{
+			"id":        r.ID,
+			"type":      r.Type,
+			"name":      r.Name,
+			"cost":      r.Cost,
+			"stock":     r.Stock,
+			"image_url": r.ImageURL,
+		})
+	}
+	return map[string]any{"items": out, "total": len(out)}, nil
+}
+
 func RegisterMall(r *Registry, deps MallDeps) {
 	r.MustRegister(CreateMallItemTool{deps})
+	r.MustRegister(ListMallItemsTool{deps})
 }
