@@ -12,6 +12,8 @@ import (
 
 	insightsh "github.com/standardsoftware/culture_points_mall/internal/modules/insights/handler"
 	insightsservice "github.com/standardsoftware/culture_points_mall/internal/modules/insights/service"
+	layoutsh "github.com/standardsoftware/culture_points_mall/internal/modules/layouts/handler"
+	layoutsservice "github.com/standardsoftware/culture_points_mall/internal/modules/layouts/service"
 	"github.com/standardsoftware/culture_points_mall/internal/config"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
@@ -127,6 +129,9 @@ func Build(deps Deps) *gin.Engine {
 		insightsSvc := insightsservice.New(deps.LLM, pointsSvc, valuesSvc, deps.DB, deps.Redis)
 		insightsh.New(insightsSvc).Register(authed)
 	}
+
+	// 布局编排（admin 拖拽自定义 H5 首页模块顺序）
+	layoutsh.New(layoutsservice.New(deps.DB)).Register(authed)
 
 	return r
 }
