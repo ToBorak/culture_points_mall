@@ -3,14 +3,17 @@ package migrate
 import (
 	"context"
 	"fmt"
+	"os"
 
+	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
 )
 
 type Seeder struct {
 	DB              *gorm.DB
 	DefaultTenantID int64
-	DimensionsFile  string
+	// DimensionsFile 价值观维度 YAML 配置文件路径，默认 "./configs/value_dimensions.yaml"
+	DimensionsFile string
 	// WelcomeBonus 每个 seed 用户的默认积分，写入首维度 customer_first。
 	// 0 表示沿用旧 demo 随机分布；>0 则给每人精确这么多分。
 	WelcomeBonus int
@@ -18,6 +21,9 @@ type Seeder struct {
 
 func (s *Seeder) Run(ctx context.Context) error {
 	if err := s.seedTenant(); err != nil {
+		return err
+	}
+	if err := s.seedDimensions(); err != nil {
 		return err
 	}
 	if err := s.seedDepartments(); err != nil {
@@ -37,6 +43,50 @@ func (s *Seeder) Run(ctx context.Context) error {
 	}
 	if err := s.seedDemoPoints(); err != nil {
 		return err
+	}
+	return nil
+}
+
+type dimDef struct {
+	Code      string  `yaml:"code"`
+	Name      string  `yaml:"name"`
+	Keywords  string  `yaml:"keywords"`
+	Weight    float64 `yaml:"weight"`
+	SortOrder int     `yaml:"sort_order"`
+}
+
+type dimFile struct {
+	Dimensions []dimDef `yaml:"dimensions"`
+}
+
+// seedDimensions 从 YAML 读取 6 个默认价值观维度，幂等插入
+func (s *Seeder) seedDimensions() error {
+	path := s.DimensionsFile
+	if path == "" {
+		path = "./configs/value_dimensions.yaml"
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+	var f dimFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return fmt.Errorf("parse %s: %w", path, err)
+	}
+	for _, d := range f.Dimensions {
+		err := s.DB.Exec(`
+			INSERT INTO value_dimensions (tenant_id, code, name, keywords, weight, sort_order, enabled)
+			VALUES (?, ?, ?, ?, ?, ?, 1)
+			ON DUPLICATE KEY UPDATE
+				name = VALUES(name),
+				keywords = VALUES(keywords),
+				weight = VALUES(weight),
+				sort_order = VALUES(sort_order),
+				enabled = 1
+		`, s.DefaultTenantID, d.Code, d.Name, d.Keywords, d.Weight, d.SortOrder).Error
+		if err != nil {
+			return fmt.Errorf("upsert dimension %s: %w", d.Code, err)
+		}
 	}
 	return nil
 }
