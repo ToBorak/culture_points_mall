@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"context"
+	"log"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,11 +12,17 @@ import (
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 )
 
+// WelcomeBonusGranter 抽象积分注入接口，避免 auth 直接依赖 points/values
+type WelcomeBonusGranter interface {
+	GrantWelcomeBonus(ctx context.Context, tenantID, userID int64, amount int) error
+}
+
 type Handler struct {
-	DB     *gorm.DB
-	Cfg    *config.Config
-	Signer *Signer
-	Ding   dingtalk.Client
+	DB      *gorm.DB
+	Cfg     *config.Config
+	Signer  *Signer
+	Ding    dingtalk.Client
+	Granter WelcomeBonusGranter
 }
 
 func NewHandler(db *gorm.DB, cfg *config.Config, ding dingtalk.Client) *Handler {
@@ -24,6 +32,11 @@ func NewHandler(db *gorm.DB, cfg *config.Config, ding dingtalk.Client) *Handler 
 		Signer: &Signer{Secret: []byte(cfg.JWT.Secret), TTL: time.Duration(cfg.JWT.TTLHours) * time.Hour},
 		Ding:   ding,
 	}
+}
+
+func (h *Handler) WithGranter(g WelcomeBonusGranter) *Handler {
+	h.Granter = g
+	return h
 }
 
 func (h *Handler) Register(rg *gin.RouterGroup) {
@@ -96,6 +109,8 @@ func (h *Handler) upsertUser(c *gin.Context, tid int64, du dingtalk.User) (int64
 		Raw("SELECT id, name FROM users WHERE tenant_id = ? AND ding_user_id = ? LIMIT 1", tid, du.DingUserID).
 		Scan(&existing).Error
 	if err == nil && existing.ID > 0 {
+		// 老用户兜底：如果总积分仍是 0，补发欢迎积分
+		h.maybeGrantWelcome(c.Request.Context(), tid, existing.ID)
 		return existing.ID, existing.Name, nil
 	}
 	res := h.DB.WithContext(c.Request.Context()).
@@ -106,5 +121,31 @@ func (h *Handler) upsertUser(c *gin.Context, tid int64, du dingtalk.User) (int64
 	var id int64
 	h.DB.WithContext(c.Request.Context()).
 		Raw("SELECT LAST_INSERT_ID()").Scan(&id)
+
+	h.maybeGrantWelcome(c.Request.Context(), tid, id)
 	return id, du.Name, nil
+}
+
+func (h *Handler) maybeGrantWelcome(ctx context.Context, tid, uid int64) {
+	if h.Granter == nil {
+		return
+	}
+	bonus := h.Cfg.Seed.WelcomeBonus
+	if bonus <= 0 {
+		return
+	}
+	// 只在用户总积分 = 0 时补发
+	var total int
+	if err := h.DB.WithContext(ctx).
+		Raw("SELECT COALESCE(SUM(total_score), 0) FROM user_dimension_scores WHERE tenant_id = ? AND user_id = ?", tid, uid).
+		Scan(&total).Error; err != nil {
+		log.Printf("welcome-bonus: read total failed uid=%d err=%v", uid, err)
+		return
+	}
+	if total > 0 {
+		return
+	}
+	if err := h.Granter.GrantWelcomeBonus(ctx, tid, uid, bonus); err != nil {
+		log.Printf("welcome-bonus: grant failed uid=%d err=%v", uid, err)
+	}
 }

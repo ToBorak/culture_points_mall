@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -50,6 +51,28 @@ type Deps struct {
 	Redis        *redis.Client
 }
 
+// welcomeGranter 新用户/积分为零用户首次登录时一次性发放欢迎积分。
+// 全部计入 sort_order=0 的首维度，方便盲盒消费扣减。
+type welcomeGranter struct {
+	points *pointssvc.Service
+	values *valuessvc.Service
+}
+
+func (g *welcomeGranter) GrantWelcomeBonus(ctx context.Context, tenantID, userID int64, amount int) error {
+	dims, err := g.values.GetDimensions(ctx, tenantID)
+	if err != nil || len(dims) == 0 {
+		return err
+	}
+	_, err = g.points.AddPoints(ctx, pointssvc.AddPointsCmd{
+		TenantID: tenantID,
+		UserID:   userID,
+		Amount:   amount,
+		DimCode:  dims[0].Code,
+		Reason:   "新员工欢迎积分",
+	})
+	return err
+}
+
 func Build(deps Deps) *gin.Engine {
 	r := gin.Default()
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
@@ -74,7 +97,9 @@ func Build(deps Deps) *gin.Engine {
 	open := r.Group("/")
 	valuesh.New(valuesSvc).Register(open)
 	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(open)
-	auth.NewHandler(deps.DB, deps.Cfg, deps.DingClient).Register(open)
+	auth.NewHandler(deps.DB, deps.Cfg, deps.DingClient).
+		WithGranter(&welcomeGranter{points: pointsSvc, values: valuesSvc}).
+		Register(open)
 
 	// 受保护组
 	authed := r.Group("/", auth.RequireJWT(signer))

@@ -55,6 +55,7 @@ type SigninCfg struct {
 }
 type SeedCfg struct {
 	DefaultTenantID int64 `mapstructure:"default_tenant_id"`
+	WelcomeBonus    int   `mapstructure:"welcome_bonus"`
 }
 
 func Load(paths ...string) (*Config, error) {

@@ -35,3 +35,4 @@ signin:
   window_seconds: 60
 seed:
   default_tenant_id: 1
+  welcome_bonus: 100000     # 新用户首次登录或老用户总分=0 时自动发放
