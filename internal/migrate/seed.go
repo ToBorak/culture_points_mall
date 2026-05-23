@@ -11,6 +11,9 @@ type Seeder struct {
 	DB              *gorm.DB
 	DefaultTenantID int64
 	DimensionsFile  string
+	// WelcomeBonus 每个 seed 用户的默认积分，写入首维度 customer_first。
+	// 0 表示沿用旧 demo 随机分布；>0 则给每人精确这么多分。
+	WelcomeBonus int
 }
 
 func (s *Seeder) Run(ctx context.Context) error {
@@ -184,10 +187,27 @@ func (s *Seeder) seedDemoPoints() error {
 	if existing > 0 {
 		return nil
 	}
+
+	bonus := s.WelcomeBonus
+	if bonus <= 0 {
+		bonus = 100000 // 默认每个 seed 用户起始 100,000 分
+	}
+
+	// 第一步：给每个用户发放欢迎积分（统一到 customer_first 维度 = id 1，与运行时 welcomeGranter 一致）
+	for uid := int64(1); uid <= 50; uid++ {
+		if err := s.grantWelcome(uid, bonus); err != nil {
+			return err
+		}
+	}
+
+	// 第二步：在其它维度撒一些演示分数，让排行榜/雷达有变化
 	for uid := int64(1); uid <= 50; uid++ {
 		n := 3 + (uid % 6)
 		for i := int64(0); i < n; i++ {
 			dimID := (i % 6) + 1
+			if dimID == 1 {
+				continue // customer_first 已经发过欢迎积分
+			}
 			amt := 10 + int(uid+i)*3
 			_ = s.DB.Exec(
 				`INSERT INTO point_transactions (tenant_id, user_id, dimension_id, amount, reason) VALUES (?, ?, ?, ?, ?)`,
@@ -204,6 +224,24 @@ func (s *Seeder) seedDemoPoints() error {
 		}
 	}
 	return nil
+}
+
+// grantWelcome 写一条 100,000 欢迎积分流水 + 维度汇总，全部计入 customer_first（dim_id=1）
+func (s *Seeder) grantWelcome(uid int64, amount int) error {
+	if err := s.DB.Exec(
+		`INSERT INTO point_transactions (tenant_id, user_id, dimension_id, amount, reason) VALUES (?, ?, 1, ?, '新员工欢迎积分')`,
+		s.DefaultTenantID, uid, amount,
+	).Error; err != nil {
+		return err
+	}
+	return s.DB.Exec(`
+		INSERT INTO user_dimension_scores (user_id, tenant_id, dimension_id, total_score, quarter_score, year_score)
+		VALUES (?, ?, 1, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			total_score = total_score + VALUES(total_score),
+			quarter_score = quarter_score + VALUES(quarter_score),
+			year_score = year_score + VALUES(year_score)
+	`, uid, s.DefaultTenantID, amount, amount, amount).Error
 }
 
 func (s *Seeder) count(table string, tenantID int64) int64 {
