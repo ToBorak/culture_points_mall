@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/standardsoftware/culture_points_mall/internal/modules/mall/repository"
@@ -17,6 +19,7 @@ func New(r *repository.GormRepo, s *service.Service) *Handler { return &Handler{
 
 func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/api/v1/mall/items", h.list)
+	rg.GET("/api/v1/mall/blindbox/:id/prizes", h.listPrizes)
 	rg.POST("/api/v1/mall/blindbox/draw", h.draw)
 	rg.POST("/api/v1/admin/mall/items", h.create)
 }
@@ -32,6 +35,30 @@ func (h *Handler) list(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"items": rows})
+}
+
+func (h *Handler) listPrizes(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if id <= 0 {
+		c.JSON(400, gin.H{"error": "invalid id"})
+		return
+	}
+	rows, err := h.Repo.ListPrizes(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	out := make([]gin.H, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, gin.H{
+			"id":         r.ID,
+			"prizeName":  r.PrizeName,
+			"prizeImage": r.PrizeImage,
+			"weight":     r.Weight,
+			"stock":      r.Stock,
+		})
+	}
+	c.JSON(200, gin.H{"items": out})
 }
 
 type drawReq struct {
