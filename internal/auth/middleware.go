@@ -63,3 +63,17 @@ func attachContext(c *gin.Context, claims *Claims) {
 	ctx = cpmctx.WithRoles(ctx, claims.Roles)
 	c.Request = c.Request.WithContext(ctx)
 }
+
+// RequireRole 要求 context 中的 roles 含指定角色，否则 403。
+// 必须挂在 RequireJWT/RequireJWTWithUser 之后（roles 由 attachContext 注入）。
+func RequireRole(role string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		for _, r := range cpmctx.Roles(c.Request.Context()) {
+			if r == role {
+				c.Next()
+				return
+			}
+		}
+		c.AbortWithStatusJSON(403, gin.H{"error": "forbidden", "code": "role_required"})
+	}
+}
