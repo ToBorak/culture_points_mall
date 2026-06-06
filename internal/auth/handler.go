@@ -46,6 +46,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 
 type dingLoginReq struct {
 	Code string `json:"code" binding:"required"`
+	Diag string `json:"_diag"` // 前端诊断信息（钉钉 env.platform / 取码分支），仅用于排查
 }
 
 type loginResp struct {
@@ -61,8 +62,10 @@ func (h *Handler) dingLogin(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("dingtalk login attempt: codeLen=%d diag=%q", len(req.Code), req.Diag)
 	user, err := h.Ding.GetUserByCode(c.Request.Context(), req.Code)
 	if err != nil {
+		log.Printf("dingtalk login failed: codeLen=%d diag=%q err=%v", len(req.Code), req.Diag, err)
 		c.JSON(401, gin.H{"error": err.Error()})
 		return
 	}
@@ -104,7 +107,9 @@ func (h *Handler) devLogin(c *gin.Context) {
 		c.JSON(404, gin.H{"error": "user not found"})
 		return
 	}
-	roles := h.rolesFor(row.DingUserID, row.IsAdmin)
+	// dev 登录是「管理后台」的开发态入口（员工端走钉钉登录，不用此接口），
+	// DEMO 模式下统一授予 admin 角色，便于任意 User ID 操作后台。生产应禁用本接口。
+	roles := []string{"admin"}
 	tok, _ := h.Signer.Issue(req.UserID, tid, roles)
 	c.JSON(200, loginResp{Token: tok, UserID: req.UserID, TenantID: tid, Name: row.Name})
 }
