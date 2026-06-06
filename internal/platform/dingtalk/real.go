@@ -2,8 +2,14 @@ package dingtalk
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -159,8 +165,55 @@ func (c *RealClient) SendInteractiveCard(_ context.Context, _, _ string, _ map[s
 	return CardInstance{}, errNotImplemented
 }
 
-func (c *RealClient) BotBroadcast(_ context.Context, _ string, _ Card) error {
-	return errNotImplemented
+// BotBroadcast 通过群里的「自定义机器人」Webhook（加签）推一条 markdown 消息。
+// groupID 对应 config.dingtalk.robots[].id。
+func (c *RealClient) BotBroadcast(ctx context.Context, groupID string, msg Card) error {
+	var robot *config.RobotCfg
+	for i := range c.cfg.Robots {
+		if c.cfg.Robots[i].ID == groupID {
+			robot = &c.cfg.Robots[i]
+			break
+		}
+	}
+	if robot == nil {
+		return fmt.Errorf("dingtalk: 未找到 groupID=%q 对应的群机器人配置", groupID)
+	}
+
+	// 加签：sign = base64(HmacSHA256(secret, "{timestamp}\n{secret}"))，再 urlEncode
+	ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	mac := hmac.New(sha256.New, []byte(robot.Secret))
+	mac.Write([]byte(ts + "\n" + robot.Secret))
+	sign := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+	signedURL := robot.Webhook + "&timestamp=" + ts + "&sign=" + url.QueryEscape(sign)
+
+	title := msg.Title
+	if title == "" {
+		title = "通知"
+	}
+	text := msg.Detail
+	if msg.Title != "" {
+		text = "### " + msg.Title + "\n\n" + msg.Detail
+	}
+	body := map[string]any{
+		"msgtype":  "markdown",
+		"markdown": map[string]string{"title": title, "text": text},
+	}
+
+	raw, err := c.api.do(ctx, signedURL, "", body)
+	if err != nil {
+		return err
+	}
+	var env struct {
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return fmt.Errorf("dingtalk robot send: invalid json response: %w", err)
+	}
+	if env.ErrCode != 0 {
+		return fmt.Errorf("dingtalk robot send errcode=%d errmsg=%s", env.ErrCode, env.ErrMsg)
+	}
+	return nil
 }
 
 func (c *RealClient) StartOAProcess(_ context.Context, _ ApprovalRequest) (string, error) {
