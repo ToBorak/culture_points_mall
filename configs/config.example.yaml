@@ -38,4 +38,5 @@ signin:
   window_seconds: 60
 seed:
   default_tenant_id: 1
-  welcome_bonus: 100000     # 新用户首次登录或老用户总分=0 时自动发放
+  welcome_bonus: 100000     # 新用户首次登录或老用户总分=0 时自动发放（产品策略，可调小）
+  demo_data: false          # true 仅用于演示：生成 50 个假用户(员工01-50)+演示积分；生产保持 false

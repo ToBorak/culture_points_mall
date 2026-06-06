@@ -34,6 +34,7 @@ func main() {
 			DB:              db,
 			DefaultTenantID: cfg.Seed.DefaultTenantID,
 			WelcomeBonus:    cfg.Seed.WelcomeBonus,
+			DemoData:        cfg.Seed.DemoData,
 		}
 		if err := seeder.Run(context.Background()); err != nil {
 			log.Fatalf("seed: %v", err)

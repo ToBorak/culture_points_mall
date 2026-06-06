@@ -17,6 +17,8 @@ type Seeder struct {
 	// WelcomeBonus 每个 seed 用户的默认积分，写入首维度 customer_first。
 	// 0 表示沿用旧 demo 随机分布；>0 则给每人精确这么多分。
 	WelcomeBonus int
+	// DemoData 为 true 时才生成 50 个演示用户与演示积分（仅本地演示，生产保持 false）。
+	DemoData bool
 }
 
 func (s *Seeder) Run(ctx context.Context) error {
@@ -29,8 +31,10 @@ func (s *Seeder) Run(ctx context.Context) error {
 	if err := s.seedDepartments(); err != nil {
 		return err
 	}
-	if err := s.seedUsers(); err != nil {
-		return err
+	if s.DemoData {
+		if err := s.seedUsers(); err != nil {
+			return err
+		}
 	}
 	if err := s.seedBadges(); err != nil {
 		return err
@@ -41,8 +45,10 @@ func (s *Seeder) Run(ctx context.Context) error {
 	if err := s.seedBlindboxPool(); err != nil {
 		return err
 	}
-	if err := s.seedDemoPoints(); err != nil {
-		return err
+	if s.DemoData {
+		if err := s.seedDemoPoints(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
