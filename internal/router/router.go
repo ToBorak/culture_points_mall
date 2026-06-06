@@ -100,14 +100,16 @@ func Build(deps Deps) *gin.Engine {
 
 	// 开放组：无鉴权，仅限公开端点
 	open := r.Group("/")
-	valuesh.New(valuesSvc).Register(open)
+	valuesHandler := valuesh.New(valuesSvc)
+	valuesHandler.Register(open)
 	auth.NewHandler(deps.DB, deps.Cfg, deps.DingClient).
 		WithGranter(&welcomeGranter{points: pointsSvc, values: valuesSvc}).
 		Register(open)
 
 	// 受保护组：JWT + 用户存在性校验（DB 重置后老 token 自动失效）
 	authed := r.Group("/", auth.RequireJWTWithUser(signer, deps.DB))
-	acth.New(actSvc).Register(authed)
+	actHandler := acth.New(actSvc)
+	actHandler.Register(authed)
 	pointsh.New(pointsSvc, valuesSvc).Register(authed)
 	usersh.New(usersvc.New(usersrepo.New(deps.DB))).Register(authed)
 	achvh.New(achvSvc).Register(authed)
@@ -131,6 +133,9 @@ func Build(deps Deps) *gin.Engine {
 
 	// 后台管理组：JWT + 用户存在性 + admin 角色门禁
 	admin := r.Group("/", auth.RequireJWTWithUser(signer, deps.DB), auth.RequireRole("admin"))
+	valuesHandler.RegisterAdmin(admin)
+	actHandler.RegisterAdmin(admin)
+	signinHandlerInst.RegisterAdmin(admin)
 	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(admin)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(admin)

@@ -14,6 +14,9 @@ func New(svc *service.Service) *Handler { return &Handler{Svc: svc} }
 
 func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/api/v1/values/dimensions", h.list)
+}
+
+func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 	rg.GET("/admin/values/dimensions", h.list)
 	rg.POST("/admin/values/dimensions", h.upsert)
 }
