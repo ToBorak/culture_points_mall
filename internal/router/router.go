@@ -120,7 +120,8 @@ func Build(deps Deps) *gin.Engine {
 	signinHandlerInst.RegisterWS(open)
 	mallRepo := mallrepo.New(deps.DB)
 	mallSvc := mallsvc.New(mallRepo, pointsSvc, valuesSvc)
-	mallh.New(mallRepo, mallSvc).Register(authed)
+	mallHandler := mallh.New(mallRepo, mallSvc)
+	mallHandler.Register(authed)
 
 	// AI 洞察（DNA 报告 / 教练 / 挑战 / 排行解读）
 	if deps.LLM != nil {
@@ -129,13 +130,16 @@ func Build(deps Deps) *gin.Engine {
 	}
 
 	// 布局编排（admin 拖拽自定义 H5 首页模块顺序）
-	layoutsh.New(layoutsservice.New(deps.DB)).Register(authed)
+	layoutsHandler := layoutsh.New(layoutsservice.New(deps.DB))
+	layoutsHandler.Register(authed)
 
 	// 后台管理组：JWT + 用户存在性 + admin 角色门禁
 	admin := r.Group("/", auth.RequireJWTWithUser(signer, deps.DB), auth.RequireRole("admin"))
 	valuesHandler.RegisterAdmin(admin)
 	actHandler.RegisterAdmin(admin)
 	signinHandlerInst.RegisterAdmin(admin)
+	layoutsHandler.RegisterAdmin(admin)
+	mallHandler.RegisterAdmin(admin)
 	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(admin)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(admin)

@@ -21,6 +21,9 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/api/v1/mall/items", h.list)
 	rg.GET("/api/v1/mall/blindbox/:id/prizes", h.listPrizes)
 	rg.POST("/api/v1/mall/blindbox/draw", h.draw)
+}
+
+func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 	rg.POST("/api/v1/admin/mall/items", h.create)
 }
 
