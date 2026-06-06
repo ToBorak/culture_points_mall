@@ -16,6 +16,9 @@ func New(s *service.Service) *Handler { return &Handler{Svc: s} }
 
 func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.POST("/api/v1/signin/check", h.check)
+}
+
+func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 	rg.GET("/admin/activities/:id/signin-code", h.currentCode)
 }
 

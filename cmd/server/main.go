@@ -45,7 +45,7 @@ func main() {
 	}
 	bus := dingtalk.NewBus()
 	mock := dingtalk.NewMock(db, bus)
-	var ding dingtalk.Client = mock
+	ding := dingtalk.New(cfg.DingTalk, redisClient, mock)
 
 	llmClient, err := llm.NewFromConfig(cfg)
 	if err != nil {

@@ -16,6 +16,9 @@ dingtalk:
   app_secret: ""
   corp_id: ""
   agent_id: 0
+  admin_user_ids: []
+  calendar_organizer_unionid: ""
+  robots: []
 llm:
   provider: "claude"
   claude:

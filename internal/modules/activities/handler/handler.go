@@ -15,8 +15,11 @@ type Handler struct{ Svc *service.Service }
 func New(s *service.Service) *Handler { return &Handler{Svc: s} }
 
 func (h *Handler) Register(rg *gin.RouterGroup) {
-	rg.POST("/admin/activities", h.create)
 	rg.GET("/api/v1/activities", h.list)
+}
+
+func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
+	rg.POST("/admin/activities", h.create)
 }
 
 type createReq struct {

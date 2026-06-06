@@ -41,3 +41,12 @@ func TestMockClient_SendWorkNotice(t *testing.T) {
 	require.Equal(t, "send_work_notice", ev.API)
 	require.Equal(t, "u1,u2", ev.Target)
 }
+
+func TestMockGetUserByCode_FillsNewFields(t *testing.T) {
+	m := NewMock(nil, NewBus())
+	u, err := m.GetUserByCode(context.Background(), "abc")
+	require.NoError(t, err)
+	require.Equal(t, "mock_abc", u.DingUserID)
+	require.NotEmpty(t, u.UnionID)
+	require.False(t, u.IsAdmin)
+}

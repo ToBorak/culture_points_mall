@@ -46,6 +46,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 
 type dingLoginReq struct {
 	Code string `json:"code" binding:"required"`
+	Diag string `json:"_diag"` // 前端诊断信息（钉钉 env.platform / 取码分支），仅用于排查
 }
 
 type loginResp struct {
@@ -61,8 +62,10 @@ func (h *Handler) dingLogin(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("dingtalk login attempt: codeLen=%d diag=%q", len(req.Code), req.Diag)
 	user, err := h.Ding.GetUserByCode(c.Request.Context(), req.Code)
 	if err != nil {
+		log.Printf("dingtalk login failed: codeLen=%d diag=%q err=%v", len(req.Code), req.Diag, err)
 		c.JSON(401, gin.H{"error": err.Error()})
 		return
 	}
@@ -72,7 +75,8 @@ func (h *Handler) dingLogin(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	tok, err := h.Signer.Issue(userID, tid, nil)
+	roles := h.rolesFor(user.DingUserID, user.IsAdmin)
+	tok, err := h.Signer.Issue(userID, tid, roles)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -91,39 +95,80 @@ func (h *Handler) devLogin(c *gin.Context) {
 		return
 	}
 	tid := h.Cfg.Seed.DefaultTenantID
-	var name string
-	if err := h.DB.Raw("SELECT name FROM users WHERE id = ? AND tenant_id = ?", req.UserID, tid).Scan(&name).Error; err != nil {
+	var row struct {
+		ID         int64
+		Name       string
+		DingUserID string
+		IsAdmin    bool
+	}
+	if err := h.DB.WithContext(c.Request.Context()).
+		Raw("SELECT id, name, ding_user_id, is_admin FROM users WHERE id = ? AND tenant_id = ?", req.UserID, tid).
+		Scan(&row).Error; err != nil || row.ID == 0 {
 		c.JSON(404, gin.H{"error": "user not found"})
 		return
 	}
-	tok, _ := h.Signer.Issue(req.UserID, tid, nil)
-	c.JSON(200, loginResp{Token: tok, UserID: req.UserID, TenantID: tid, Name: name})
+	// dev 登录是「管理后台」的开发态入口（员工端走钉钉登录，不用此接口），
+	// DEMO 模式下统一授予 admin 角色，便于任意 User ID 操作后台。生产应禁用本接口。
+	roles := []string{"admin"}
+	tok, _ := h.Signer.Issue(req.UserID, tid, roles)
+	c.JSON(200, loginResp{Token: tok, UserID: req.UserID, TenantID: tid, Name: row.Name})
 }
 
 func (h *Handler) upsertUser(c *gin.Context, tid int64, du dingtalk.User) (int64, string, error) {
+	ctx := c.Request.Context()
 	var existing struct {
 		ID   int64
 		Name string
 	}
-	err := h.DB.WithContext(c.Request.Context()).
+	err := h.DB.WithContext(ctx).
 		Raw("SELECT id, name FROM users WHERE tenant_id = ? AND ding_user_id = ? LIMIT 1", tid, du.DingUserID).
 		Scan(&existing).Error
 	if err == nil && existing.ID > 0 {
-		// 老用户兜底：如果总积分仍是 0，补发欢迎积分
-		h.maybeGrantWelcome(c.Request.Context(), tid, existing.ID)
+		if err := h.DB.WithContext(ctx).Exec(
+			"UPDATE users SET union_id = ?, is_admin = ? WHERE id = ?",
+			nullable(du.UnionID), boolToInt(du.IsAdmin), existing.ID).Error; err != nil {
+			return 0, "", err
+		}
+		h.maybeGrantWelcome(ctx, tid, existing.ID)
 		return existing.ID, existing.Name, nil
 	}
-	res := h.DB.WithContext(c.Request.Context()).
-		Exec("INSERT INTO users (tenant_id, ding_user_id, name, avatar_url) VALUES (?, ?, ?, ?)", tid, du.DingUserID, du.Name, du.AvatarURL)
+	res := h.DB.WithContext(ctx).Exec(
+		"INSERT INTO users (tenant_id, ding_user_id, name, avatar_url, union_id, is_admin) VALUES (?, ?, ?, ?, ?, ?)",
+		tid, du.DingUserID, du.Name, du.AvatarURL, nullable(du.UnionID), boolToInt(du.IsAdmin))
 	if res.Error != nil {
 		return 0, "", res.Error
 	}
 	var id int64
-	h.DB.WithContext(c.Request.Context()).
-		Raw("SELECT LAST_INSERT_ID()").Scan(&id)
-
-	h.maybeGrantWelcome(c.Request.Context(), tid, id)
+	h.DB.WithContext(ctx).Raw("SELECT LAST_INSERT_ID()").Scan(&id)
+	h.maybeGrantWelcome(ctx, tid, id)
 	return id, du.Name, nil
+}
+
+func (h *Handler) rolesFor(dingUserID string, isAdmin bool) []string {
+	if isAdmin {
+		return []string{"admin"}
+	}
+	for _, id := range h.Cfg.DingTalk.AdminUserIDs {
+		if id == dingUserID {
+			return []string{"admin"}
+		}
+	}
+	return nil
+}
+
+// nullable 把空串转 NULL，避免 union_id 空串撞 uk_tenant_union 唯一键。
+func nullable(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func (h *Handler) maybeGrantWelcome(ctx context.Context, tid, uid int64) {

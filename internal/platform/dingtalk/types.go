@@ -7,6 +7,8 @@ type User struct {
 	Name       string
 	AvatarURL  string
 	DeptIDs    []int64
+	UnionID    string
+	IsAdmin    bool
 }
 
 type CalendarRequest struct {

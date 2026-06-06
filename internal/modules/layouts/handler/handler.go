@@ -12,9 +12,12 @@ type Handler struct{ Svc *service.Service }
 func New(s *service.Service) *Handler { return &Handler{Svc: s} }
 
 func (h *Handler) Register(rg *gin.RouterGroup) {
-	rg.GET("/api/v1/layout", h.get)             // 员工 H5 读取
-	rg.GET("/api/v1/admin/layout", h.adminGet)  // admin 编辑读取（含 modules meta）
-	rg.PUT("/api/v1/admin/layout", h.save)      // admin 保存
+	rg.GET("/api/v1/layout", h.get) // 员工 H5 读取
+}
+
+func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
+	rg.GET("/api/v1/admin/layout", h.adminGet) // admin 编辑读取（含 modules meta）
+	rg.PUT("/api/v1/admin/layout", h.save)     // admin 保存
 }
 
 func (h *Handler) get(c *gin.Context) {

@@ -98,17 +98,18 @@ func Build(deps Deps) *gin.Engine {
 	signinRepo := signinrepo.New(deps.DB)
 	signinSvc := signinsvc.New(signinRepo, actSvc, pointsSvc, achvSvc, deps.Cfg.Signin.Secret, deps.Cfg.Signin.WindowSeconds)
 
-	// 开放组（含 admin 演示，正式生产应再加 admin role 校验）
+	// 开放组：无鉴权，仅限公开端点
 	open := r.Group("/")
-	valuesh.New(valuesSvc).Register(open)
-	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(open)
+	valuesHandler := valuesh.New(valuesSvc)
+	valuesHandler.Register(open)
 	auth.NewHandler(deps.DB, deps.Cfg, deps.DingClient).
 		WithGranter(&welcomeGranter{points: pointsSvc, values: valuesSvc}).
 		Register(open)
 
 	// 受保护组：JWT + 用户存在性校验（DB 重置后老 token 自动失效）
 	authed := r.Group("/", auth.RequireJWTWithUser(signer, deps.DB))
-	acth.New(actSvc).Register(authed)
+	actHandler := acth.New(actSvc)
+	actHandler.Register(authed)
 	pointsh.New(pointsSvc, valuesSvc).Register(authed)
 	usersh.New(usersvc.New(usersrepo.New(deps.DB))).Register(authed)
 	achvh.New(achvSvc).Register(authed)
@@ -119,10 +120,8 @@ func Build(deps Deps) *gin.Engine {
 	signinHandlerInst.RegisterWS(open)
 	mallRepo := mallrepo.New(deps.DB)
 	mallSvc := mallsvc.New(mallRepo, pointsSvc, valuesSvc)
-	mallh.New(mallRepo, mallSvc).Register(authed)
-	if deps.AgentHandler != nil {
-		deps.AgentHandler.Register(authed)
-	}
+	mallHandler := mallh.New(mallRepo, mallSvc)
+	mallHandler.Register(authed)
 
 	// AI 洞察（DNA 报告 / 教练 / 挑战 / 排行解读）
 	if deps.LLM != nil {
@@ -131,7 +130,20 @@ func Build(deps Deps) *gin.Engine {
 	}
 
 	// 布局编排（admin 拖拽自定义 H5 首页模块顺序）
-	layoutsh.New(layoutsservice.New(deps.DB)).Register(authed)
+	layoutsHandler := layoutsh.New(layoutsservice.New(deps.DB))
+	layoutsHandler.Register(authed)
+
+	// 后台管理组：JWT + 用户存在性 + admin 角色门禁
+	admin := r.Group("/", auth.RequireJWTWithUser(signer, deps.DB), auth.RequireRole("admin"))
+	valuesHandler.RegisterAdmin(admin)
+	actHandler.RegisterAdmin(admin)
+	signinHandlerInst.RegisterAdmin(admin)
+	layoutsHandler.RegisterAdmin(admin)
+	mallHandler.RegisterAdmin(admin)
+	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(admin)
+	if deps.AgentHandler != nil {
+		deps.AgentHandler.Register(admin)
+	}
 
 	return r
 }
