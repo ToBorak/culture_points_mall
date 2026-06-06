@@ -33,11 +33,13 @@ type DrawResult struct {
 }
 
 var (
-	ErrItemNotBlindbox  = errors.New("item not blindbox")
-	ErrNoPrizes         = errors.New("no prizes configured")
-	ErrInvalidItemType  = errors.New("type must be 'item' or 'blindbox'")
-	ErrInvalidItemName  = errors.New("name required")
-	ErrInvalidItemCost  = errors.New("cost must be > 0")
+	ErrItemNotBlindbox   = errors.New("item not blindbox")
+	ErrNoPrizes          = errors.New("no prizes configured")
+	ErrInvalidItemType   = errors.New("type must be 'item' or 'blindbox'")
+	ErrInvalidItemName   = errors.New("name required")
+	ErrInvalidItemCost   = errors.New("cost must be > 0")
+	ErrItemNotRedeemable = errors.New("盲盒请用抽奖，不能直接兑换")
+	ErrOutOfStock        = errors.New("库存不足")
 )
 
 type CreateItemCmd struct {
@@ -144,6 +146,39 @@ func (s *Service) Draw(ctx context.Context, tenantID, userID, boxID int64) (*Dra
 		Win: true, PrizeID: prize.ID, PrizeName: prize.PrizeName,
 		PrizeImage: prize.PrizeImage, Amount: box.Cost,
 	}, nil
+}
+
+type RedeemResult struct {
+	ItemName string `json:"itemName"`
+	Cost     int    `json:"cost"`
+}
+
+// Redeem 直接兑换非盲盒商品：校验库存 → 冻结积分 → 确认扣分 → 建订单 → 减库存
+func (s *Service) Redeem(ctx context.Context, tenantID, userID, itemID int64) (*RedeemResult, error) {
+	item, err := s.Repo.GetItem(ctx, tenantID, itemID)
+	if err != nil {
+		return nil, err
+	}
+	if item.Type != "item" {
+		return nil, ErrItemNotRedeemable
+	}
+	if item.Stock != nil && *item.Stock <= 0 {
+		return nil, ErrOutOfStock
+	}
+
+	txID, err := s.Points.TryFreeze(ctx, tenantID, userID, item.Cost, s.FreezeTTL)
+	if err != nil {
+		return nil, err
+	}
+	dimID := s.resolveConsumptionDim(ctx, tenantID)
+	if err := s.Points.Confirm(ctx, tenantID, userID, item.Cost, dimID, "积分兑换 · "+item.Name); err != nil {
+		_ = s.Points.CancelByTxID(ctx, txID)
+		return nil, err
+	}
+	iid := itemID
+	_ = s.Repo.CreateOrder(ctx, &domain.Order{TenantID: tenantID, UserID: userID, ItemID: &iid, Cost: item.Cost, Status: "paid"})
+	_ = s.Repo.DecrementStock(ctx, itemID)
+	return &RedeemResult{ItemName: item.Name, Cost: item.Cost}, nil
 }
 
 func (s *Service) resolveConsumptionDim(ctx context.Context, tenantID int64) int64 {

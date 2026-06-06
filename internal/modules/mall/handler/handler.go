@@ -21,6 +21,8 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/api/v1/mall/items", h.list)
 	rg.GET("/api/v1/mall/blindbox/:id/prizes", h.listPrizes)
 	rg.POST("/api/v1/mall/blindbox/draw", h.draw)
+	rg.POST("/api/v1/mall/items/:id/redeem", h.redeem)
+	rg.GET("/api/v1/me/orders", h.myOrders)
 }
 
 func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
@@ -115,4 +117,31 @@ func (h *Handler) create(c *gin.Context) {
 		return
 	}
 	c.JSON(200, it)
+}
+
+func (h *Handler) redeem(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	uid := cpmctx.UserID(c.Request.Context())
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if id <= 0 {
+		c.JSON(400, gin.H{"error": "invalid id"})
+		return
+	}
+	res, err := h.Svc.Redeem(c.Request.Context(), tid, uid, id)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, res)
+}
+
+func (h *Handler) myOrders(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	uid := cpmctx.UserID(c.Request.Context())
+	rows, err := h.Repo.ListOrdersByUser(c.Request.Context(), tid, uid)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"items": rows})
 }
