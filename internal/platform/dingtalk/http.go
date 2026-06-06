@@ -38,7 +38,9 @@ func (c *caller) oapiPost(ctx context.Context, path, token string, in, out any) 
 		ErrCode int    `json:"errcode"`
 		ErrMsg  string `json:"errmsg"`
 	}
-	_ = json.Unmarshal(raw, &env)
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return fmt.Errorf("dingtalk oapi %s: invalid json response: %w", path, err)
+	}
 	if env.ErrCode != 0 {
 		return fmt.Errorf("dingtalk oapi %s errcode=%d errmsg=%s", path, env.ErrCode, env.ErrMsg)
 	}
@@ -59,7 +61,7 @@ func (c *caller) apiPost(ctx context.Context, path, token string, in, out any) e
 	return nil
 }
 
-// do 发 POST，返回响应体；headerToken 非空时设钉钉新接口 header，并对非 2xx 报错。
+// do 发 POST 并返回响应体。headerToken 非空时设置钉钉新接口 header；任何非 2xx 响应都返回错误。
 func (c *caller) do(ctx context.Context, fullURL, headerToken string, in any) ([]byte, error) {
 	body, err := json.Marshal(in)
 	if err != nil {
@@ -78,9 +80,26 @@ func (c *caller) do(ctx context.Context, fullURL, headerToken string, in any) ([
 		return nil, err
 	}
 	defer resp.Body.Close()
-	raw, _ := io.ReadAll(resp.Body)
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("dingtalk %s read body: %w", redactToken(fullURL), err)
+	}
 	if resp.StatusCode/100 != 2 {
-		return nil, fmt.Errorf("dingtalk %s status=%d body=%s", fullURL, resp.StatusCode, string(raw))
+		return nil, fmt.Errorf("dingtalk %s status=%d body=%s", redactToken(fullURL), resp.StatusCode, string(raw))
 	}
 	return raw, nil
+}
+
+// redactToken 掩码 URL 中的 access_token 查询值，避免错误信息把 token 泄露到日志。
+func redactToken(u string) string {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return u
+	}
+	q := parsed.Query()
+	if q.Has("access_token") {
+		q.Set("access_token", "***")
+		parsed.RawQuery = q.Encode()
+	}
+	return parsed.String()
 }

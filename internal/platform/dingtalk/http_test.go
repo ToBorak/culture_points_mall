@@ -65,3 +65,16 @@ func TestCaller_ApiPost_Non2xx(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "401")
 }
+
+func TestCaller_OapiPost_StatusErrorRedactsToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte(`oops`))
+	}))
+	defer srv.Close()
+	c := newCaller()
+	c.oapiBase = srv.URL
+	err := c.oapiPost(context.Background(), "/topapi/demo", "supersecret", map[string]any{}, nil)
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "supersecret")
+}
