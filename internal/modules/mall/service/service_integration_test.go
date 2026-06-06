@@ -102,7 +102,7 @@ func TestDraw_TCC_Integration(t *testing.T) {
 	mr2 := mallrepo.New(testDB)
 	require.NoError(t, testDB.Exec(
 		`INSERT INTO mall_items (id, tenant_id, type, name, cost) VALUES (?, ?, ?, ?, ?)`,
-		int64(100), int64(1), "blindbox", "测试盲盒", 80,
+		int64(100), int64(1), "blindbox", "测试盲盒", 10,
 	).Error)
 	// 60% 未中奖 / 40% 咖啡券
 	require.NoError(t, testDB.Exec(
@@ -135,16 +135,16 @@ func TestDraw_TCC_Integration(t *testing.T) {
 	testDB.Raw(`SELECT COUNT(*) FROM mall_blindbox_freeze WHERE status = 'cancelled' AND user_id = 100`).Scan(&cancelledCnt)
 	require.Equal(t, int64(missCount), cancelledCnt, "cancelled freeze count should equal misses")
 
-	// 验证用户积分仅扣减 win 数 × 80
+	// 验证用户积分仅扣减 win 数 × 10
 	total, err := pr.GetTotalScore(ctx, 1, 100)
 	require.NoError(t, err)
-	require.Equal(t, 500-winCount*80, total, "score should only deduct for wins")
+	require.Equal(t, 500-winCount*10, total, "score should only deduct for wins")
 
 	// 验证超期 freeze sweep（手动插入一条过期）
 	expired := time.Now().Add(-1 * time.Minute)
 	require.NoError(t, testDB.Exec(
 		`INSERT INTO mall_blindbox_freeze (tx_id, user_id, box_item_id, amount, status, expires_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		"tx-expired-test", int64(100), int64(100), 80, "try", expired,
+		"tx-expired-test", int64(100), int64(100), 10, "try", expired,
 	).Error)
 
 	expiredRows, err := mr2.ListExpiredFreeze(ctx, time.Now(), 10)

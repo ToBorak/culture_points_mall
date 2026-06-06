@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -63,6 +64,11 @@ func (h *Handler) dingLogin(c *gin.Context) {
 		return
 	}
 	log.Printf("dingtalk login attempt: codeLen=%d diag=%q", len(req.Code), req.Diag)
+	if h.Cfg.DingTalk.Mode != "real" && !strings.HasPrefix(req.Code, "dev-") {
+		log.Printf("dingtalk login blocked: mode=%q received non-dev auth code diag=%q", h.Cfg.DingTalk.Mode, req.Diag)
+		c.JSON(409, gin.H{"error": "后端钉钉配置仍为 mock，不能用真实钉钉 authCode 登录；请以 real 模式重启后端"})
+		return
+	}
 	user, err := h.Ding.GetUserByCode(c.Request.Context(), req.Code)
 	if err != nil {
 		log.Printf("dingtalk login failed: codeLen=%d diag=%q err=%v", len(req.Code), req.Diag, err)
@@ -124,13 +130,19 @@ func (h *Handler) upsertUser(c *gin.Context, tid int64, du dingtalk.User) (int64
 		Raw("SELECT id, name FROM users WHERE tenant_id = ? AND ding_user_id = ? LIMIT 1", tid, du.DingUserID).
 		Scan(&existing).Error
 	if err == nil && existing.ID > 0 {
+		name := existing.Name
+		if du.Name != "" {
+			name = du.Name
+		}
 		if err := h.DB.WithContext(ctx).Exec(
-			"UPDATE users SET union_id = ?, is_admin = ? WHERE id = ?",
-			nullable(du.UnionID), boolToInt(du.IsAdmin), existing.ID).Error; err != nil {
+			`UPDATE users
+			 SET name = ?, avatar_url = CASE WHEN ? = '' THEN avatar_url ELSE ? END, union_id = ?, is_admin = ?
+			 WHERE id = ?`,
+			name, du.AvatarURL, du.AvatarURL, nullable(du.UnionID), boolToInt(du.IsAdmin), existing.ID).Error; err != nil {
 			return 0, "", err
 		}
 		h.maybeGrantWelcome(ctx, tid, existing.ID)
-		return existing.ID, existing.Name, nil
+		return existing.ID, name, nil
 	}
 	res := h.DB.WithContext(ctx).Exec(
 		"INSERT INTO users (tenant_id, ding_user_id, name, avatar_url, union_id, is_admin) VALUES (?, ?, ?, ?, ?, ?)",

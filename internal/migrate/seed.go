@@ -136,44 +136,55 @@ func (s *Seeder) seedUsers() error {
 }
 
 func (s *Seeder) seedBadges() error {
-	if cnt := s.count("badges", s.DefaultTenantID); cnt > 0 {
+	// 自愈：已是新版里程碑勋章（存在"初来乍到"）则跳过；否则清掉旧勋章后重建，
+	// 便于从旧的 24 枚价值观勋章平滑迁移（无需 drop 整库）。
+	var milestone int64
+	s.DB.Raw(`SELECT COUNT(*) FROM badges WHERE tenant_id = ? AND name = ?`, s.DefaultTenantID, "初来乍到").Scan(&milestone)
+	if milestone > 0 {
 		return nil
 	}
-	codes := []string{"customer_first", "team_collab", "innovation", "integrity", "craftsmanship", "growth"}
-	tiers := []struct {
-		name   string
-		rarity string
-		thresh int
-	}{
-		{"微光", "common", 10},
-		{"进阶", "rare", 50},
-		{"卓越", "epic", 150},
-		{"传奇", "legendary", 300},
+	if err := s.DB.Exec(`DELETE FROM user_badges WHERE badge_id IN (SELECT id FROM badges WHERE tenant_id = ?)`, s.DefaultTenantID).Error; err != nil {
+		return err
 	}
-	for _, code := range codes {
-		var dimID int64
-		s.DB.Raw(`SELECT id FROM value_dimensions WHERE tenant_id = ? AND code = ?`, s.DefaultTenantID, code).Scan(&dimID)
-		if dimID == 0 {
-			continue
-		}
-		for _, t := range tiers {
-			rule := fmt.Sprintf(`{"type":"accumulated","dimension":"%s","threshold":%d}`, code, t.thresh)
-			err := s.DB.Exec(
-				`INSERT INTO badges (tenant_id, dimension_id, name, rarity, rule_json, icon_url) VALUES (?, ?, ?, ?, ?, ?)`,
-				s.DefaultTenantID, dimID,
-				fmt.Sprintf("%s · %s", code, t.name),
-				t.rarity, rule,
-				fmt.Sprintf("https://api.dicebear.com/9.x/shapes/svg?seed=badge-%s-%s", code, t.rarity),
-			).Error
-			if err != nil {
-				return err
-			}
+	if err := s.DB.Exec(`DELETE FROM badges WHERE tenant_id = ?`, s.DefaultTenantID).Error; err != nil {
+		return err
+	}
+	// 10 枚「成长里程碑」勋章：起点 / 赚取线 / 消费线。
+	// 均为全局勋章（dimension_id = 0）。icon_url 存 emblem 代码，前端按代码渲染拟物奖牌。
+	badges := []struct {
+		name   string // 四字成语称号
+		desc   string // 解锁条件文案
+		rarity string
+		rule   string
+		emblem string
+	}{
+		{"初来乍到", "完成第一次活动签到", "common", `{"type":"first_signin"}`, "sprout"},
+		{"旗开得胜", "赚到第一笔积分", "common", `{"type":"earned_total","threshold":1}`, "flag"},
+		{"积少成多", "累计赚取满 5 分", "common", `{"type":"earned_total","threshold":5}`, "coin_stack"},
+		{"聚沙成塔", "累计赚取满 10 分", "rare", `{"type":"earned_total","threshold":10}`, "pagoda"},
+		{"厚积薄发", "累计赚取满 20 分", "epic", `{"type":"earned_total","threshold":20}`, "burst"},
+		{"富甲一方", "累计赚取满 50 分", "legendary", `{"type":"earned_total","threshold":50}`, "ingot"},
+		{"小试牛刀", "累计消费满 5 分", "common", `{"type":"spent_total","threshold":5}`, "cleaver"},
+		{"各取所需", "累计消费满 10 分", "rare", `{"type":"spent_total","threshold":10}`, "gift"},
+		{"满载而归", "累计消费满 20 分", "epic", `{"type":"spent_total","threshold":20}`, "bag"},
+		{"一掷千金", "累计消费满 50 分", "legendary", `{"type":"spent_total","threshold":50}`, "coins_toss"},
+	}
+	for _, b := range badges {
+		err := s.DB.Exec(
+			`INSERT INTO badges (tenant_id, dimension_id, name, description, rarity, rule_json, icon_url) VALUES (?, 0, ?, ?, ?, ?, ?)`,
+			s.DefaultTenantID, b.name, b.desc, b.rarity, b.rule, b.emblem,
+		).Error
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 func (s *Seeder) seedMallItems() error {
+	if err := s.syncDefaultBlindboxCosts(); err != nil {
+		return err
+	}
 	if cnt := s.count("mall_items", s.DefaultTenantID); cnt > 0 {
 		return nil
 	}
@@ -186,8 +197,8 @@ func (s *Seeder) seedMallItems() error {
 		{"item", "周边帆布袋", 50, intPtr(100)},
 		{"item", "公司定制 T 恤", 120, intPtr(50)},
 		{"item", "咖啡券", 30, intPtr(200)},
-		{"blindbox", "AI 文化盲盒 · 普通", 80, nil},
-		{"blindbox", "AI 文化盲盒 · 闪光", 200, nil},
+		{"blindbox", "AI 文化盲盒 · 普通", 5, nil},
+		{"blindbox", "AI 文化盲盒 · 闪光", 10, nil},
 	}
 	for _, r := range rows {
 		var stock any = nil
@@ -200,6 +211,25 @@ func (s *Seeder) seedMallItems() error {
 			fmt.Sprintf("https://api.dicebear.com/9.x/shapes/svg?seed=item-%s", r.name),
 		).Error
 		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Seeder) syncDefaultBlindboxCosts() error {
+	updates := []struct {
+		name string
+		cost int
+	}{
+		{"AI 文化盲盒 · 普通", 5},
+		{"AI 文化盲盒 · 闪光", 10},
+	}
+	for _, u := range updates {
+		if err := s.DB.Exec(
+			`UPDATE mall_items SET cost = ? WHERE tenant_id = ? AND type = 'blindbox' AND name = ?`,
+			u.cost, s.DefaultTenantID, u.name,
+		).Error; err != nil {
 			return err
 		}
 	}

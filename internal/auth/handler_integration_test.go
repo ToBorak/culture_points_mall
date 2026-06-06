@@ -82,6 +82,7 @@ func newAuthCfg() *config.Config {
 	c := &config.Config{}
 	c.JWT.Secret = "test-secret"
 	c.JWT.TTLHours = 1
+	c.DingTalk.Mode = "real"
 	c.Seed.DefaultTenantID = 1
 	return c
 }
@@ -152,6 +153,42 @@ func TestDingLogin_NonAdminByAllowlist(t *testing.T) {
 	claims, err := signer.Parse(lr.Token)
 	require.NoError(t, err)
 	require.Contains(t, claims.Roles, "admin")
+}
+
+func TestDingLogin_ExistingUserSyncsProfileFromDingTalk(t *testing.T) {
+	require.NoError(t, authDB.Exec("TRUNCATE users").Error)
+	require.NoError(t, authDB.Exec(
+		"INSERT INTO users (tenant_id, ding_user_id, name, avatar_url, union_id, is_admin) VALUES (1, 'u-sync', '旧名字', 'http://old/avatar.png', 'old-union', 0)",
+	).Error)
+	cfg := newAuthCfg()
+	h := NewHandler(authDB, cfg, fakeDing{user: dingtalk.User{
+		DingUserID: "u-sync", Name: "钉钉真实姓名", AvatarURL: "http://real/avatar.png", UnionID: "real-union", IsAdmin: true,
+	}})
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	h.Register(r.Group("/"))
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+
+	body, _ := json.Marshal(map[string]string{"code": "x"})
+	resp, err := http.Post(srv.URL+"/auth/dingtalk/login", "application/json", bytes.NewReader(body))
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+	var lr loginResp
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&lr))
+	require.Equal(t, "钉钉真实姓名", lr.Name)
+
+	var row struct {
+		Name      string
+		AvatarURL string
+		UnionID   string
+		IsAdmin   int
+	}
+	require.NoError(t, authDB.Raw("SELECT name, avatar_url, union_id, is_admin FROM users WHERE ding_user_id=?", "u-sync").Scan(&row).Error)
+	require.Equal(t, "钉钉真实姓名", row.Name)
+	require.Equal(t, "http://real/avatar.png", row.AvatarURL)
+	require.Equal(t, "real-union", row.UnionID)
+	require.Equal(t, 1, row.IsAdmin)
 }
 
 func TestAdminGroup_RoleGate(t *testing.T) {

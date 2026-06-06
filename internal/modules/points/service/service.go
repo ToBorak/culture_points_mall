@@ -158,3 +158,35 @@ func (s *Service) CancelByTxID(ctx context.Context, txID string) error {
 	}
 	return nil
 }
+
+// GetEarnedTotal 累计赚取积分（正流水之和，排除一次性"新员工欢迎积分"）。
+func (s *Service) GetEarnedTotal(ctx context.Context, tenantID, userID int64) (int, error) {
+	var total int64
+	err := s.DB.WithContext(ctx).
+		Table("point_transactions").
+		Where("tenant_id = ? AND user_id = ? AND amount > 0 AND reason <> ?", tenantID, userID, "新员工欢迎积分").
+		Select("COALESCE(SUM(amount),0)").
+		Scan(&total).Error
+	return int(total), err
+}
+
+// GetSpentTotal 累计消费积分（负流水绝对值之和）。
+func (s *Service) GetSpentTotal(ctx context.Context, tenantID, userID int64) (int, error) {
+	var total int64
+	err := s.DB.WithContext(ctx).
+		Table("point_transactions").
+		Where("tenant_id = ? AND user_id = ? AND amount < 0", tenantID, userID).
+		Select("COALESCE(-SUM(amount),0)").
+		Scan(&total).Error
+	return int(total), err
+}
+
+// HasActivityParticipation 是否参加过活动（存在 activity_id 非空的正流水）。
+func (s *Service) HasActivityParticipation(ctx context.Context, tenantID, userID int64) (bool, error) {
+	var cnt int64
+	err := s.DB.WithContext(ctx).
+		Table("point_transactions").
+		Where("tenant_id = ? AND user_id = ? AND amount > 0 AND activity_id IS NOT NULL", tenantID, userID).
+		Count(&cnt).Error
+	return cnt > 0, err
+}

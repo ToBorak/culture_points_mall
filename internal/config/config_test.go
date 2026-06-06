@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -20,7 +22,12 @@ func TestExpandEnv_DingTalk(t *testing.T) {
 }
 
 func TestLoadExample(t *testing.T) {
-	cfg, err := Load("../../configs")
+	dir := t.TempDir()
+	example, err := os.ReadFile("../../configs/config.example.yaml")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.example.yaml"), example, 0o600))
+
+	cfg, err := Load(dir)
 	require.NoError(t, err)
 	require.Equal(t, 18080, cfg.Server.Port)
 	require.Equal(t, "mock", cfg.DingTalk.Mode)

@@ -52,7 +52,7 @@ func TestRealClient_GetUserByCode(t *testing.T) {
 
 func TestRealClient_UnimplementedReturnsErr(t *testing.T) {
 	c := NewReal(config.DingTalkCfg{}, nil)
-	_, err := c.CreateCalendarEvent(context.Background(), CalendarRequest{})
+	_, err := c.ListCalendarResponses(context.Background(), "event-1")
 	require.ErrorIs(t, err, errNotImplemented)
 	require.Error(t, c.BotBroadcast(context.Background(), "g", Card{}))
 }
