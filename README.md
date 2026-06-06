@@ -1,6 +1,6 @@
 # 文化积分商城 · 后端
 
-> 双 binary：`cmd/server`（HTTP :8080） + `cmd/mcp`（JSON-RPC over SSE :8090）
+> 双 binary：`cmd/server`（HTTP :18080） + `cmd/mcp`（JSON-RPC over SSE :8090）
 
 ## 🚀 一键启动（推荐）
 
@@ -17,7 +17,7 @@ cd culture_points_mall
 2. 启动 **MySQL 8.4 + Redis 7**（Docker 容器）
 3. **重置数据库**：drop → migrate → seed 50 员工 + 24 徽章 + 商品 + 奖品池
 4. 克隆/检测前端仓库（默认在 `../culture_points_mall_web`）并 `pnpm install`
-5. 拉起 **后端 :8080 / MCP :8090 / H5 :5173 / Admin :5174**，浏览器自动打开
+5. 拉起 **后端 :18080 / MCP :8090 / H5 :5173 / Admin :5174**，浏览器自动打开
 
 > **首次克隆前端**：若同级目录没有前端仓库，需指定 git 地址
 > ```bash
@@ -34,7 +34,7 @@ cd culture_points_mall
 |---|---|---|
 | 员工 H5 | http://localhost:5173 | 自动钉钉模拟登录，新用户首登赠 100,000 积分 |
 | 管理后台 | http://localhost:5174 | User ID 输入 `1` 即可登录 |
-| 后端 API | http://localhost:8080/healthz | |
+| 后端 API | http://localhost:18080/healthz | |
 | MCP 服务 | http://localhost:8090/mcp/sse | Bearer token 任意非空字符串 |
 
 如果要用 HR-Agent 自然语言聊天，编辑 `configs/config.yaml` 填入 LLM API Key
@@ -57,7 +57,7 @@ make ps          # 查看容器状态
 make up                              # 启动 MySQL + Redis 容器
 make migrate                         # 建表
 make seed                            # 灌入演示数据
-make dev                             # 前台运行后端 :8080
+make dev                             # 前台运行后端 :18080
 go run ./cmd/mcp                     # 另一终端：MCP :8090
 ```
 

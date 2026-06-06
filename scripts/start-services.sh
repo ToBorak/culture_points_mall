@@ -65,7 +65,7 @@ spawn() {
 }
 
 start_backend() {
-  kill_port 8080
+  kill_port 18080
   spawn backend "$LOG_DIR/backend.log" go run ./cmd/server
 }
 
@@ -114,7 +114,7 @@ $GREEN==============================
   culture-points-mall 已启动
 ==============================$RESET
 
-  后端 API     http://localhost:8080
+  后端 API     http://localhost:18080
   MCP 服务     http://localhost:8090/mcp/sse
   员工 H5      http://localhost:5173
   管理后台     http://localhost:5174   (User ID 1 即可登录)
@@ -139,7 +139,7 @@ main() {
   install_frontend_deps
   start_backend
   start_mcp
-  wait_ready "http://localhost:8080/healthz" backend
+  wait_ready "http://localhost:18080/healthz" backend
   wait_ready_mcp "http://localhost:8090/mcp/sse"
   start_frontend
   wait_ready "http://localhost:5173/" h5
