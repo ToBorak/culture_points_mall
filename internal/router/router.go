@@ -43,6 +43,9 @@ import (
 	valuesh "github.com/standardsoftware/culture_points_mall/internal/modules/values/handler"
 	valuesrepo "github.com/standardsoftware/culture_points_mall/internal/modules/values/repository"
 	valuessvc "github.com/standardsoftware/culture_points_mall/internal/modules/values/service"
+	schedulerepo "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/repository"
+	schedulesvc "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/service"
+	scheduleh "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/handler"
 )
 
 type Deps struct {
@@ -111,7 +114,8 @@ func Build(deps Deps) *gin.Engine {
 	actHandler := acth.New(actSvc)
 	actHandler.Register(authed)
 	pointsh.New(pointsSvc, valuesSvc).Register(authed)
-	usersh.New(usersvc.New(usersrepo.New(deps.DB))).Register(authed)
+	usersHandler := usersh.New(usersvc.New(usersrepo.New(deps.DB)))
+	usersHandler.Register(authed)
 	achvh.New(achvSvc).Register(authed)
 	passporth.New(pointsSvc, achvSvc).Register(authed)
 	lbh.New(lbsvc.New(deps.DB)).Register(authed)
@@ -141,6 +145,10 @@ func Build(deps Deps) *gin.Engine {
 	layoutsHandler.RegisterAdmin(admin)
 	mallHandler.RegisterAdmin(admin)
 	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(admin)
+	usersHandler.RegisterAdmin(admin)
+	dingtalk.NewRobotsHandler(deps.Cfg.DingTalk.Robots).RegisterAdmin(admin)
+	scheduleSvc := schedulesvc.New(schedulerepo.New(deps.DB), deps.DingClient)
+	scheduleh.New(scheduleSvc).RegisterAdmin(admin)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(admin)
 	}
