@@ -3,6 +3,8 @@ package dingtalk
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 
@@ -84,8 +86,65 @@ func (c *RealClient) GetUserByCode(ctx context.Context, code string) (User, erro
 
 // 以下方法 Phase 3 填实。
 
-func (c *RealClient) CreateCalendarEvent(_ context.Context, _ CalendarRequest) (string, error) {
-	return "", errNotImplemented
+// unionIDByUserID 用 corp userid 拉 unionId（日历接口路径与参与人都要 unionId）。
+func (c *RealClient) unionIDByUserID(ctx context.Context, token, userid string) (string, error) {
+	var ug struct {
+		Result struct {
+			UnionID string `json:"unionid"`
+		} `json:"result"`
+	}
+	if err := c.api.oapiPost(ctx, "/topapi/v2/user/get", token, map[string]any{"userid": userid, "language": "zh_CN"}, &ug); err != nil {
+		return "", err
+	}
+	if ug.Result.UnionID == "" {
+		return "", fmt.Errorf("dingtalk: empty unionId for userid %s", userid)
+	}
+	return ug.Result.UnionID, nil
+}
+
+// CreateCalendarEvent 在组织者的主日历上创建日程，参与人会在各自钉钉日历里看到。
+// 组织者默认取 cfg.CalendarOrganizerUnionID，否则用参与人列表第一个。
+func (c *RealClient) CreateCalendarEvent(ctx context.Context, req CalendarRequest) (string, error) {
+	tok, err := c.tokens.corpToken(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	attendees := make([]map[string]string, 0, len(req.UserIDs))
+	organizer := c.cfg.CalendarOrganizerUnionID
+	for _, uid := range req.UserIDs {
+		union, err := c.unionIDByUserID(ctx, tok, uid)
+		if err != nil {
+			return "", fmt.Errorf("resolve unionId for %s: %w", uid, err)
+		}
+		if organizer == "" {
+			organizer = union
+		}
+		attendees = append(attendees, map[string]string{"id": union})
+	}
+	if organizer == "" {
+		return "", errors.New("dingtalk: no organizer unionId for calendar event")
+	}
+
+	body := map[string]any{
+		"summary":     req.Title,
+		"description": req.Detail,
+		"start":       map[string]string{"dateTime": req.StartAt.Format(time.RFC3339), "timeZone": "Asia/Shanghai"},
+		"end":         map[string]string{"dateTime": req.EndAt.Format(time.RFC3339), "timeZone": "Asia/Shanghai"},
+		"attendees":   attendees,
+	}
+	if req.Location != "" {
+		body["location"] = map[string]string{"displayName": req.Location}
+	}
+
+	var out struct {
+		ID string `json:"id"`
+	}
+	path := "/v1.0/calendar/users/" + organizer + "/calendars/primary/events"
+	if err := c.api.apiPost(ctx, path, tok, body, &out); err != nil {
+		return "", err
+	}
+	return out.ID, nil
 }
 
 func (c *RealClient) ListCalendarResponses(_ context.Context, _ string) ([]Response, error) {
