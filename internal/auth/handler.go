@@ -119,9 +119,11 @@ func (h *Handler) upsertUser(c *gin.Context, tid int64, du dingtalk.User) (int64
 		Raw("SELECT id, name FROM users WHERE tenant_id = ? AND ding_user_id = ? LIMIT 1", tid, du.DingUserID).
 		Scan(&existing).Error
 	if err == nil && existing.ID > 0 {
-		h.DB.WithContext(ctx).Exec(
+		if err := h.DB.WithContext(ctx).Exec(
 			"UPDATE users SET union_id = ?, is_admin = ? WHERE id = ?",
-			nullable(du.UnionID), boolToInt(du.IsAdmin), existing.ID)
+			nullable(du.UnionID), boolToInt(du.IsAdmin), existing.ID).Error; err != nil {
+			return 0, "", err
+		}
 		h.maybeGrantWelcome(ctx, tid, existing.ID)
 		return existing.ID, existing.Name, nil
 	}

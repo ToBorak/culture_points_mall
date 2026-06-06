@@ -136,9 +136,20 @@ func TestDingLogin_NonAdminByAllowlist(t *testing.T) {
 	body, _ := json.Marshal(map[string]string{"code": "x"})
 	resp, err := http.Post(srv.URL+"/auth/dingtalk/login", "application/json", bytes.NewReader(body))
 	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
 	var lr loginResp
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&lr))
+
+	var row struct {
+		UnionID string
+		IsAdmin int
+	}
+	require.NoError(t, authDB.Raw("SELECT union_id, is_admin FROM users WHERE ding_user_id=?", "u-white").Scan(&row).Error)
+	require.Equal(t, "un-w", row.UnionID)
+	require.Equal(t, 0, row.IsAdmin)
+
 	signer := &Signer{Secret: []byte(cfg.JWT.Secret), TTL: time.Hour}
-	claims, _ := signer.Parse(lr.Token)
+	claims, err := signer.Parse(lr.Token)
+	require.NoError(t, err)
 	require.Contains(t, claims.Roles, "admin")
 }
