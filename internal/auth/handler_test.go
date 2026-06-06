@@ -30,6 +30,9 @@ func (f *rejectingDingClient) CreateCalendarEvent(context.Context, dingtalk.Cale
 func (f *rejectingDingClient) ListCalendarResponses(context.Context, string) ([]dingtalk.Response, error) {
 	return nil, nil
 }
+func (f *rejectingDingClient) QueryMeetingRooms(context.Context, string) ([]dingtalk.MeetingRoom, error) {
+	return nil, nil
+}
 func (f *rejectingDingClient) SendWorkNotice(context.Context, []string, dingtalk.Card) error {
 	return nil
 }
