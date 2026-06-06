@@ -30,12 +30,21 @@ type JWTCfg struct {
 	Secret   string
 	TTLHours int `mapstructure:"ttl_hours"`
 }
+type RobotCfg struct {
+	ID      string `mapstructure:"id"`
+	Name    string `mapstructure:"name"`
+	Webhook string `mapstructure:"webhook"`
+	Secret  string `mapstructure:"secret"`
+}
 type DingTalkCfg struct {
-	Mode      string
-	AppKey    string `mapstructure:"app_key"`
-	AppSecret string `mapstructure:"app_secret"`
-	CorpID    string `mapstructure:"corp_id"`
-	AgentID   int64  `mapstructure:"agent_id"`
+	Mode                     string
+	AppKey                   string     `mapstructure:"app_key"`
+	AppSecret                string     `mapstructure:"app_secret"`
+	CorpID                   string     `mapstructure:"corp_id"`
+	AgentID                  int64      `mapstructure:"agent_id"`
+	AdminUserIDs             []string   `mapstructure:"admin_user_ids"`
+	CalendarOrganizerUnionID string     `mapstructure:"calendar_organizer_unionid"`
+	Robots                   []RobotCfg `mapstructure:"robots"`
 }
 type LLMCfg struct {
 	Provider string
@@ -99,4 +108,10 @@ func expandEnv(c *Config) {
 	c.LLM.OpenAI.APIKey = os.ExpandEnv(c.LLM.OpenAI.APIKey)
 	c.LLM.DeepSeek.APIKey = os.ExpandEnv(c.LLM.DeepSeek.APIKey)
 	c.LLM.Qwen.APIKey = os.ExpandEnv(c.LLM.Qwen.APIKey)
+	c.DingTalk.AppKey = os.ExpandEnv(c.DingTalk.AppKey)
+	c.DingTalk.AppSecret = os.ExpandEnv(c.DingTalk.AppSecret)
+	for i := range c.DingTalk.Robots {
+		c.DingTalk.Robots[i].Webhook = os.ExpandEnv(c.DingTalk.Robots[i].Webhook)
+		c.DingTalk.Robots[i].Secret = os.ExpandEnv(c.DingTalk.Robots[i].Secret)
+	}
 }
