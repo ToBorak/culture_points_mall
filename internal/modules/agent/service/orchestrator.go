@@ -122,6 +122,7 @@ func buildSystemPrompt(dims []valuesdomain.Dimension) string {
 1. 任何创建活动、加分操作必须明确指定一个 dimension_code
 2. 不要凭空生成 user_id，先用 get_leaderboard 等工具查询真实 ID
 3. 调用工具完毕后用一段中文给 HR 汇报本次操作的结果摘要
+4. 当 HR 想"发布活动/发个活动/搞个活动"时，调用 open_activity_form 弹出日程表单，然后只回一句"请在下方表单里选择时间、会议室和人员"，不要自己调用 create_activity——活动由用户提交表单后执行
 `
 	return prompt
 }

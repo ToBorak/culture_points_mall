@@ -69,6 +69,13 @@ func (m *MockClient) ListCalendarResponses(_ context.Context, _ string) ([]Respo
 	return nil, nil
 }
 
+func (m *MockClient) QueryMeetingRooms(_ context.Context, _ string) ([]MeetingRoom, error) {
+	return []MeetingRoom{
+		{RoomID: "mock-room-1", RoomName: "三楼大会议室", Capacity: 20, Status: 1, Location: "总部 3F"},
+		{RoomID: "mock-room-2", RoomName: "二楼洽谈室", Capacity: 6, Status: 1, Location: "总部 2F"},
+	}, nil
+}
+
 func (m *MockClient) SendWorkNotice(ctx context.Context, userIDs []string, msg Card) error {
 	return m.record(ctx, "send_work_notice", strings.Join(userIDs, ","), msg)
 }

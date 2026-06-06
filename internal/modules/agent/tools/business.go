@@ -71,6 +71,39 @@ func (t CreateActivityTool) Execute(ctx context.Context, in map[string]any) (map
 	return map[string]any{"activity_id": a.ID, "title": a.Title, "status": string(a.Status), "dimension_id": a.DimensionID}, nil
 }
 
+// ---- open_activity_form ----
+
+// OpenActivityFormTool 不直接建活动，而是给前端发"渲染日程表单"的信号。
+// HR 表达发布/创建活动意图时，LLM 调它弹表单；用户在表单里选时间/会议室/人员后由前端走发布接口执行。
+type OpenActivityFormTool struct{}
+
+func (OpenActivityFormTool) Name() string { return "open_activity_form" }
+func (OpenActivityFormTool) Description() string {
+	return "当 HR 想发布或创建一个活动时调用本工具，会在对话里弹出一张日程表单，让用户选择时间、会议室、参与人员（默认全员）。调用后只需用一句话提示用户填写表单，不要再自己调用 create_activity。可把已从用户话里识别到的标题/维度/时间作为预填项传入。"
+}
+func (OpenActivityFormTool) InputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"title":          map[string]any{"type": "string", "description": "活动标题（若用户已提到）"},
+			"dimension_code": map[string]any{"type": "string", "description": "价值观维度代码（若能判断）"},
+			"start_at":       map[string]any{"type": "string", "description": "RFC3339 开始时间（若用户已提到）"},
+			"end_at":         map[string]any{"type": "string", "description": "RFC3339 结束时间（若用户已提到）"},
+			"points_reward":  map[string]any{"type": "integer", "description": "奖励积分（若用户已提到）"},
+		},
+	}
+}
+
+func (OpenActivityFormTool) Execute(_ context.Context, in map[string]any) (map[string]any, error) {
+	prefill := map[string]any{}
+	for _, k := range []string{"title", "dimension_code", "start_at", "end_at", "points_reward"} {
+		if v, ok := in[k]; ok {
+			prefill[k] = v
+		}
+	}
+	return map[string]any{"form": "activity_schedule", "prefill": prefill}, nil
+}
+
 // ---- list_activities ----
 
 type ListActivitiesTool struct{ Deps BusinessDeps }
@@ -228,6 +261,7 @@ func (t AwardBadgeTool) Execute(ctx context.Context, in map[string]any) (map[str
 
 func RegisterBusiness(r *Registry, deps BusinessDeps) {
 	r.MustRegister(CreateActivityTool{deps})
+	r.MustRegister(OpenActivityFormTool{})
 	r.MustRegister(ListActivitiesTool{deps})
 	r.MustRegister(GetUserPointsTool{deps})
 	r.MustRegister(AddPointsTool{deps})

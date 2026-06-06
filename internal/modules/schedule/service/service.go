@@ -33,6 +33,7 @@ type CreateCmd struct {
 	Detail          string
 	AttendeeUserIDs []string
 	GroupIDs        []string
+	RoomIDs         []string
 	PushCalendar    bool
 	PushGroup       bool
 	CreatedBy       int64
@@ -51,13 +52,21 @@ func (s *Service) Create(ctx context.Context, cmd CreateCmd) (*domain.Schedule, 
 		eventID, err := s.Ding.CreateCalendarEvent(ctx, dingtalk.CalendarRequest{
 			Title: cmd.Title, StartAt: cmd.StartAt, EndAt: cmd.EndAt,
 			UserIDs: cmd.AttendeeUserIDs, Location: cmd.Location, Detail: cmd.Detail,
+			RoomIDs: cmd.RoomIDs,
 		})
+		// 事件可能已建成但加会议室失败：此时 eventID 非空且 err 非空，两者都记录。
+		if eventID != "" {
+			sch.CalendarEventID = eventID
+		}
 		if err != nil {
 			notes = append(notes, "日历失败:"+err.Error())
 			sch.Status = domain.StatusPartial
 		} else {
-			sch.CalendarEventID = eventID
-			notes = append(notes, "日历OK:"+eventID)
+			note := "日历OK:" + eventID
+			if len(cmd.RoomIDs) > 0 {
+				note += " 会议室:" + strings.Join(cmd.RoomIDs, ",")
+			}
+			notes = append(notes, note)
 		}
 	}
 

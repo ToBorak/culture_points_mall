@@ -69,6 +69,9 @@ func (f fakeDing) CreateCalendarEvent(context.Context, dingtalk.CalendarRequest)
 func (f fakeDing) ListCalendarResponses(context.Context, string) ([]dingtalk.Response, error) {
 	return nil, nil
 }
+func (f fakeDing) QueryMeetingRooms(context.Context, string) ([]dingtalk.MeetingRoom, error) {
+	return nil, nil
+}
 func (f fakeDing) SendWorkNotice(context.Context, []string, dingtalk.Card) error { return nil }
 func (f fakeDing) SendInteractiveCard(context.Context, string, string, map[string]any) (dingtalk.CardInstance, error) {
 	return dingtalk.CardInstance{}, nil

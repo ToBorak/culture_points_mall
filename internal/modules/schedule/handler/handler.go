@@ -26,6 +26,7 @@ type createReq struct {
 	Detail          string   `json:"detail"`
 	AttendeeUserIDs []string `json:"attendeeUserIds"`
 	GroupIDs        []string `json:"groupIds"`
+	RoomIDs         []string `json:"roomIds"`
 	PushCalendar    bool     `json:"pushCalendar"`
 	PushGroup       bool     `json:"pushGroup"`
 }
@@ -57,7 +58,8 @@ func (h *Handler) create(c *gin.Context) {
 	sch, err := h.Svc.Create(c.Request.Context(), service.CreateCmd{
 		TenantID: tid, Title: req.Title, StartAt: start, EndAt: end,
 		Location: req.Location, Detail: req.Detail, AttendeeUserIDs: req.AttendeeUserIDs,
-		GroupIDs: req.GroupIDs, PushCalendar: req.PushCalendar, PushGroup: req.PushGroup, CreatedBy: uid,
+		GroupIDs: req.GroupIDs, RoomIDs: req.RoomIDs,
+		PushCalendar: req.PushCalendar, PushGroup: req.PushGroup, CreatedBy: uid,
 	})
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})

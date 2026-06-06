@@ -46,6 +46,7 @@ import (
 	schedulerepo "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/repository"
 	schedulesvc "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/service"
 	scheduleh "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/handler"
+	publishmod "github.com/standardsoftware/culture_points_mall/internal/modules/publish"
 )
 
 type Deps struct {
@@ -114,7 +115,8 @@ func Build(deps Deps) *gin.Engine {
 	actHandler := acth.New(actSvc)
 	actHandler.Register(authed)
 	pointsh.New(pointsSvc, valuesSvc).Register(authed)
-	usersHandler := usersh.New(usersvc.New(usersrepo.New(deps.DB)))
+	usersSvc := usersvc.New(usersrepo.New(deps.DB))
+	usersHandler := usersh.New(usersSvc)
 	usersHandler.Register(authed)
 	achvh.New(achvSvc).Register(authed)
 	passporth.New(pointsSvc, achvSvc).Register(authed)
@@ -147,8 +149,11 @@ func Build(deps Deps) *gin.Engine {
 	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(admin)
 	usersHandler.RegisterAdmin(admin)
 	dingtalk.NewRobotsHandler(deps.Cfg.DingTalk.Robots).RegisterAdmin(admin)
+	dingtalk.NewMeetingRoomsHandler(deps.DingClient, deps.DB).RegisterAdmin(admin)
 	scheduleSvc := schedulesvc.New(schedulerepo.New(deps.DB), deps.DingClient)
 	scheduleh.New(scheduleSvc).RegisterAdmin(admin)
+	// 发布活动 = 建活动 + 建日程（日历/会议室/全员/群推送）一次性编排，供 HR-Agent 日程表单提交
+	publishmod.NewHandler(publishmod.New(actSvc, scheduleSvc, usersSvc)).RegisterAdmin(admin)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(admin)
 	}

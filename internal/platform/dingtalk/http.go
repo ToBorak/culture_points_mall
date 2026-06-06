@@ -61,6 +61,22 @@ func (c *caller) apiPost(ctx context.Context, path, token string, in, out any) e
 	return nil
 }
 
+// apiGet 发 GET 到 api.dingtalk.com 新接口（参数走 query，token 走 header），用于会议室列表等只读接口。
+func (c *caller) apiGet(ctx context.Context, path, token string, query url.Values, out any) error {
+	full := c.apiBase + path
+	if len(query) > 0 {
+		full += "?" + query.Encode()
+	}
+	raw, err := c.doGet(ctx, full, token)
+	if err != nil {
+		return err
+	}
+	if out != nil {
+		return json.Unmarshal(raw, out)
+	}
+	return nil
+}
+
 // do 发 POST 并返回响应体。headerToken 非空时设置钉钉新接口 header；任何非 2xx 响应都返回错误。
 func (c *caller) do(ctx context.Context, fullURL, headerToken string, in any) ([]byte, error) {
 	body, err := json.Marshal(in)
@@ -72,6 +88,30 @@ func (c *caller) do(ctx context.Context, fullURL, headerToken string, in any) ([
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if headerToken != "" {
+		req.Header.Set("x-acs-dingtalk-access-token", headerToken)
+	}
+	resp, err := c.hc.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("dingtalk %s read body: %w", redactToken(fullURL), err)
+	}
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("dingtalk %s status=%d body=%s", redactToken(fullURL), resp.StatusCode, string(raw))
+	}
+	return raw, nil
+}
+
+// doGet 发 GET 并返回响应体。语义与 do 一致，仅方法不同、无请求体。
+func (c *caller) doGet(ctx context.Context, fullURL, headerToken string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
+	if err != nil {
+		return nil, err
+	}
 	if headerToken != "" {
 		req.Header.Set("x-acs-dingtalk-access-token", headerToken)
 	}
