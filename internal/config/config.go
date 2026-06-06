@@ -65,6 +65,8 @@ type SigninCfg struct {
 type SeedCfg struct {
 	DefaultTenantID int64 `mapstructure:"default_tenant_id"`
 	WelcomeBonus    int   `mapstructure:"welcome_bonus"`
+	// DemoData 为 true 时生成 50 个演示用户与演示积分（仅本地演示用，生产应为 false）。
+	DemoData bool `mapstructure:"demo_data"`
 }
 
 func Load(paths ...string) (*Config, error) {

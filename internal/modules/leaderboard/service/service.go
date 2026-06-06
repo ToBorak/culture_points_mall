@@ -48,7 +48,6 @@ func (s *Service) List(ctx context.Context, p ListParams) ([]Entry, error) {
 	case p.Scope == "dept":
 		err := s.DB.WithContext(ctx).Raw(`
 			SELECT
-				ROW_NUMBER() OVER (ORDER BY SUM(s.total_score) DESC) AS rank,
 				d.id AS user_id, d.name AS name, '' AS avatar_url, '' AS dept_name,
 				COALESCE(SUM(s.total_score), 0) AS score
 			FROM departments d

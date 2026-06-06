@@ -69,3 +69,37 @@ func (r *GormRepo) ListExpiredFreeze(ctx context.Context, now time.Time, limit i
 func (r *GormRepo) CreateOrder(ctx context.Context, o *domain.Order) error {
 	return r.DB.WithContext(ctx).Create(o).Error
 }
+
+// OrderView 我的订单展示视图（关联商品名/奖品名）
+type OrderView struct {
+	ID        int64  `json:"id"`
+	ItemID    *int64 `json:"itemId"`
+	ItemName  string `json:"itemName"`
+	PrizeID   *int64 `json:"prizeId"`
+	PrizeName string `json:"prizeName"`
+	Cost      int    `json:"cost"`
+	Status    string `json:"status"`
+}
+
+func (r *GormRepo) ListOrdersByUser(ctx context.Context, tenantID, userID int64) ([]OrderView, error) {
+	var rows []OrderView
+	err := r.DB.WithContext(ctx).Raw(`
+		SELECT o.id, o.item_id, COALESCE(i.name,'') AS item_name,
+		       o.prize_id, COALESCE(p.prize_name,'') AS prize_name,
+		       o.cost, o.status
+		FROM mall_orders o
+		LEFT JOIN mall_items i ON i.id = o.item_id
+		LEFT JOIN mall_blindbox_pool p ON p.id = o.prize_id
+		WHERE o.tenant_id = ? AND o.user_id = ?
+		ORDER BY o.id DESC
+		LIMIT 100
+	`, tenantID, userID).Scan(&rows).Error
+	return rows, err
+}
+
+// DecrementStock 库存非空时减 1（库存为 NULL 表示不限量）
+func (r *GormRepo) DecrementStock(ctx context.Context, itemID int64) error {
+	return r.DB.WithContext(ctx).Exec(
+		`UPDATE mall_items SET stock = stock - 1 WHERE id = ? AND stock IS NOT NULL AND stock > 0`, itemID,
+	).Error
+}

@@ -51,20 +51,41 @@ func (s *Service) CheckTriggers(ctx context.Context, tenantID, userID, dimension
 	for _, sc := range scores {
 		scoreByDim[sc.DimensionID] = sc.TotalScore
 	}
+	earned, err := s.Points.GetEarnedTotal(ctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	spent, err := s.Points.GetSpentTotal(ctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	hasActivity, err := s.Points.HasActivityParticipation(ctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
 
 	var newly []int64
 	for _, b := range badges {
 		if ownedSet[b.ID] {
 			continue
 		}
-		if b.DimensionID != dimensionID {
-			continue
-		}
 		var rule domain.Rule
 		if err := json.Unmarshal(b.RuleJSON, &rule); err != nil {
 			continue
 		}
-		if rule.Type == "accumulated" && scoreByDim[b.DimensionID] >= rule.Threshold {
+		// dimensionID 参数对全局里程碑勋章不再过滤；按规则类型判定。
+		unlocked := false
+		switch rule.Type {
+		case "accumulated":
+			unlocked = scoreByDim[b.DimensionID] >= rule.Threshold
+		case "first_signin":
+			unlocked = hasActivity
+		case "earned_total":
+			unlocked = earned >= rule.Threshold
+		case "spent_total":
+			unlocked = spent >= rule.Threshold
+		}
+		if unlocked {
 			if err := s.Repo.Inner.AwardBadge(ctx, userID, b.ID); err != nil {
 				return nil, err
 			}
@@ -92,4 +113,50 @@ func (s *Service) ListMyBadges(ctx context.Context, tenantID, userID int64) ([]d
 
 func (s *Service) AwardBadge(ctx context.Context, userID, badgeID int64) error {
 	return s.Repo.Inner.AwardBadge(ctx, userID, badgeID)
+}
+
+// BadgeView 是带"已获得/进度"的勋章视图，供前端勋章墙展示。
+type BadgeView struct {
+	Badge           domain.Badge
+	Earned          bool
+	ProgressCurrent int // 当前累计值（仅 earned_total / spent_total 有意义）
+	ProgressTarget  int // 解锁阈值（0 表示无进度条，如首次类）
+}
+
+// ListMyBadgeViews 先懒结算里程碑（CheckTriggers），再返回带进度的勋章列表。
+// 打开勋章墙即结算 spent_total / earned_total 等无即时触发点的勋章。
+func (s *Service) ListMyBadgeViews(ctx context.Context, tenantID, userID int64) ([]BadgeView, error) {
+	if _, err := s.CheckTriggers(ctx, tenantID, userID, 0); err != nil {
+		return nil, err
+	}
+	all, owned, err := s.ListMyBadges(ctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	earned, err := s.Points.GetEarnedTotal(ctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	spent, err := s.Points.GetSpentTotal(ctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]BadgeView, 0, len(all))
+	for _, b := range all {
+		cur, tgt := 0, 0
+		var rule domain.Rule
+		if json.Unmarshal(b.RuleJSON, &rule) == nil {
+			switch rule.Type {
+			case "earned_total":
+				cur, tgt = earned, rule.Threshold
+			case "spent_total":
+				cur, tgt = spent, rule.Threshold
+			}
+		}
+		if tgt > 0 && cur > tgt {
+			cur = tgt
+		}
+		views = append(views, BadgeView{Badge: b, Earned: owned[b.ID], ProgressCurrent: cur, ProgressTarget: tgt})
+	}
+	return views, nil
 }

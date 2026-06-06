@@ -24,7 +24,7 @@ for f in "$LOG_DIR"/*.pid; do
 done
 
 # 兜底 1：按端口杀掉残留
-for port in 8080 8090 5173 5174; do
+for port in 18080 8090 5173 5174; do
   if command -v lsof >/dev/null 2>&1; then
     pids="$(lsof -t -i ":${port}" 2>/dev/null || true)"
     for pid in $pids; do
