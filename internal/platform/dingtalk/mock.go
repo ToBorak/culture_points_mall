@@ -55,6 +55,8 @@ func (m *MockClient) GetUserByCode(_ context.Context, code string) (User, error)
 		DingUserID: "mock_" + code,
 		Name:       "Mock 用户 " + code,
 		AvatarURL:  fmt.Sprintf("https://api.dicebear.com/9.x/notionists/svg?seed=%s", code),
+		UnionID:    "mock_union_" + code,
+		IsAdmin:    false,
 	}, nil
 }
 
