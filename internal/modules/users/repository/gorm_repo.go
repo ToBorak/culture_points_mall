@@ -25,3 +25,16 @@ func (r *GormRepo) ListByDept(ctx context.Context, tenantID, deptID int64) ([]do
 	err := r.DB.WithContext(ctx).Where("tenant_id = ? AND dept_id = ?", tenantID, deptID).Find(&rows).Error
 	return rows, err
 }
+
+func (r *GormRepo) ListByTenant(ctx context.Context, tenantID int64, limit int) ([]domain.User, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	var rows []domain.User
+	err := r.DB.WithContext(ctx).
+		Where("tenant_id = ?", tenantID).
+		Order("id DESC").
+		Limit(limit).
+		Find(&rows).Error
+	return rows, err
+}

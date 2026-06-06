@@ -14,3 +14,7 @@ func New(r *repository.GormRepo) *Service { return &Service{Repo: r} }
 func (s *Service) GetByID(ctx context.Context, tenantID, id int64) (*domain.User, error) {
 	return s.Repo.GetByID(ctx, tenantID, id)
 }
+
+func (s *Service) List(ctx context.Context, tenantID int64) ([]domain.User, error) {
+	return s.Repo.ListByTenant(ctx, tenantID, 200)
+}

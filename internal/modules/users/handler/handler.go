@@ -27,3 +27,21 @@ func (h *Handler) me(c *gin.Context) {
 		"id": u.ID, "name": u.Name, "avatarUrl": u.AvatarURL, "deptId": u.DeptID,
 	})
 }
+
+func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
+	rg.GET("/admin/users", h.list)
+}
+
+func (h *Handler) list(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	rows, err := h.Svc.List(c.Request.Context(), tid)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	out := make([]gin.H, 0, len(rows))
+	for _, u := range rows {
+		out = append(out, gin.H{"id": u.ID, "dingUserId": u.DingUserID, "name": u.Name})
+	}
+	c.JSON(200, gin.H{"items": out})
+}
