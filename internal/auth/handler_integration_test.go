@@ -153,3 +153,29 @@ func TestDingLogin_NonAdminByAllowlist(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, claims.Roles, "admin")
 }
+
+func TestAdminGroup_RoleGate(t *testing.T) {
+	require.NoError(t, authDB.Exec("TRUNCATE users").Error)
+	authDB.Exec("INSERT INTO users (id, tenant_id, ding_user_id, name, is_admin) VALUES (1,1,'a','管理',1),(2,1,'b','普通',0)")
+	cfg := newAuthCfg()
+	signer := &Signer{Secret: []byte(cfg.JWT.Secret), TTL: time.Hour}
+	adminTok, _ := signer.Issue(1, 1, []string{"admin"})
+	userTok, _ := signer.Issue(2, 1, nil)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	admin := r.Group("/", RequireJWTWithUser(signer, authDB), RequireRole("admin"))
+	admin.GET("/admin/ping", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+
+	get := func(tok string) int {
+		req, _ := http.NewRequest("GET", srv.URL+"/admin/ping", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		return resp.StatusCode
+	}
+	require.Equal(t, 200, get(adminTok))
+	require.Equal(t, 403, get(userTok))
+}
