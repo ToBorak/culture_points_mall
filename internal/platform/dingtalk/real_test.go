@@ -52,7 +52,12 @@ func TestRealClient_GetUserByCode(t *testing.T) {
 
 func TestRealClient_UnimplementedReturnsErr(t *testing.T) {
 	c := NewReal(config.DingTalkCfg{}, nil)
-	_, err := c.CreateCalendarEvent(context.Background(), CalendarRequest{})
+	ctx := context.Background()
+	_, err := c.ListCalendarResponses(ctx, "evt")
 	require.ErrorIs(t, err, errNotImplemented)
-	require.Error(t, c.BotBroadcast(context.Background(), "g", Card{}))
+	require.ErrorIs(t, c.SendWorkNotice(ctx, nil, Card{}), errNotImplemented)
+	_, err = c.SendInteractiveCard(ctx, "t", "tpl", nil)
+	require.ErrorIs(t, err, errNotImplemented)
+	_, err = c.StartOAProcess(ctx, ApprovalRequest{})
+	require.ErrorIs(t, err, errNotImplemented)
 }
