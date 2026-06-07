@@ -98,17 +98,21 @@ func TestDraw_TCC_Integration(t *testing.T) {
 		int64(100), int64(1), int64(1), 500, 500, 500, 500, 500, 500,
 	).Error)
 
-	// 准备 mall：商品 + 奖品池
+	// 准备 mall：盲盒（charge_on_miss=0 → 未中奖退分）+ 关联好物 + 奖池
 	mr2 := mallrepo.New(testDB)
 	require.NoError(t, testDB.Exec(
-		`INSERT INTO mall_items (id, tenant_id, type, name, cost) VALUES (?, ?, ?, ?, ?)`,
-		int64(100), int64(1), "blindbox", "测试盲盒", 10,
+		`INSERT INTO mall_items (id, tenant_id, type, name, cost, charge_on_miss) VALUES (?, ?, ?, ?, ?, ?)`,
+		int64(100), int64(1), "blindbox", "测试盲盒", 10, 0,
 	).Error)
-	// 60% 未中奖 / 40% 咖啡券
 	require.NoError(t, testDB.Exec(
-		`INSERT INTO mall_blindbox_pool (box_item_id, prize_name, prize_image, weight) VALUES (?, ?, ?, ?), (?, ?, ?, ?)`,
-		int64(100), "未中奖（鼓励气泡）", "", 60,
-		int64(100), "咖啡券", "", 40,
+		`INSERT INTO mall_items (id, tenant_id, type, name, cost) VALUES (?, ?, ?, ?, ?)`,
+		int64(101), int64(1), "item", "咖啡券", 30,
+	).Error)
+	// 60% 无奖品(item_id NULL) / 40% 咖啡券(item_id=101)
+	require.NoError(t, testDB.Exec(
+		`INSERT INTO mall_blindbox_pool (box_item_id, item_id, prize_name, prize_image, weight) VALUES (?, NULL, ?, ?, ?), (?, ?, ?, ?, ?)`,
+		int64(100), "谢谢参与", "", 60,
+		int64(100), int64(101), "咖啡券", "", 40,
 	).Error)
 
 	svc := New(mr2, ps, vs)

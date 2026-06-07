@@ -95,6 +95,33 @@ func (s *Service) CheckTriggers(ctx context.Context, tenantID, userID, dimension
 	return newly, nil
 }
 
+// CheckNew 结算并返回本次「新解锁」的勋章完整信息，供 H5 全局庆祝弹窗使用。
+// 复用 CheckTriggers（它只在首次满足条件时返回该勋章，已拥有的不会再返回）。
+func (s *Service) CheckNew(ctx context.Context, tenantID, userID int64) ([]domain.Badge, error) {
+	newlyIDs, err := s.CheckTriggers(ctx, tenantID, userID, 0)
+	if err != nil {
+		return nil, err
+	}
+	if len(newlyIDs) == 0 {
+		return nil, nil
+	}
+	all, err := s.Repo.Inner.ListBadges(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[int64]domain.Badge, len(all))
+	for _, b := range all {
+		byID[b.ID] = b
+	}
+	out := make([]domain.Badge, 0, len(newlyIDs))
+	for _, id := range newlyIDs {
+		if b, ok := byID[id]; ok {
+			out = append(out, b)
+		}
+	}
+	return out, nil
+}
+
 func (s *Service) ListMyBadges(ctx context.Context, tenantID, userID int64) ([]domain.Badge, map[int64]bool, error) {
 	all, err := s.Repo.Inner.ListBadges(ctx, tenantID)
 	if err != nil {
@@ -123,12 +150,9 @@ type BadgeView struct {
 	ProgressTarget  int // 解锁阈值（0 表示无进度条，如首次类）
 }
 
-// ListMyBadgeViews 先懒结算里程碑（CheckTriggers），再返回带进度的勋章列表。
-// 打开勋章墙即结算 spent_total / earned_total 等无即时触发点的勋章。
+// ListMyBadgeViews 返回带进度的勋章列表。结算/授予由全局 BadgeCelebration（POST /me/badges/check）统一负责，
+// 这里不再懒结算——否则会在「达成弹窗」之前把勋章悄悄发掉，就没有达成提示了。
 func (s *Service) ListMyBadgeViews(ctx context.Context, tenantID, userID int64) ([]BadgeView, error) {
-	if _, err := s.CheckTriggers(ctx, tenantID, userID, 0); err != nil {
-		return nil, err
-	}
 	all, owned, err := s.ListMyBadges(ctx, tenantID, userID)
 	if err != nil {
 		return nil, err

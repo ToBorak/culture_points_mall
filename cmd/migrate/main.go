@@ -33,17 +33,11 @@ func main() {
 		seeder := &migrate.Seeder{
 			DB:              db,
 			DefaultTenantID: cfg.Seed.DefaultTenantID,
-			WelcomeBonus:    cfg.Seed.WelcomeBonus,
-			DemoData:        cfg.Seed.DemoData,
 		}
 		if err := seeder.Run(context.Background()); err != nil {
 			log.Fatalf("seed: %v", err)
 		}
-		bonus := seeder.WelcomeBonus
-		if bonus <= 0 {
-			bonus = 100000
-		}
-		log.Printf("seed done (each user got %d welcome points)", bonus)
+		log.Printf("seed done")
 	default:
 		log.Fatalf("unknown action: %s", *action)
 	}

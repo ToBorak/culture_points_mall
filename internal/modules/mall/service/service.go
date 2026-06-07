@@ -149,7 +149,64 @@ func (s *Service) DeleteItem(ctx context.Context, tenantID, id int64) error {
 	return s.Repo.DeleteItem(ctx, tenantID, id)
 }
 
-// Draw 抽奖完整 TCC 链路
+// BoxPrizeCmd 盲盒里一件「好物奖品」的配置。
+type BoxPrizeCmd struct {
+	ItemID *int64
+	Weight int
+	Stock  *int // nil = 不限份数
+}
+
+// SaveBoxConfigCmd 整存盲盒配置：扣分模式 + 无奖品权重 + 勾选的好物奖品。
+type SaveBoxConfigCmd struct {
+	ChargeOnMiss  bool
+	NoPrizeWeight int
+	Prizes        []BoxPrizeCmd
+}
+
+// SaveBoxConfig 校验并整存盲盒奖池配置（清空重建）。好物名称/图片做快照便于订单与历史展示。
+func (s *Service) SaveBoxConfig(ctx context.Context, tenantID, boxID int64, cmd SaveBoxConfigCmd) error {
+	box, err := s.Repo.GetItem(ctx, tenantID, boxID)
+	if err != nil {
+		return err
+	}
+	if box.Type != "blindbox" {
+		return ErrItemNotBlindbox
+	}
+	inputs := make([]repository.PrizeInput, 0, len(cmd.Prizes)+1)
+	for _, p := range cmd.Prizes {
+		if p.ItemID == nil {
+			continue
+		}
+		good, err := s.Repo.GetItem(ctx, tenantID, *p.ItemID)
+		if err != nil {
+			return err
+		}
+		if good.Type != "item" {
+			return ErrInvalidItemType
+		}
+		w := p.Weight
+		if w < 0 {
+			w = 0
+		}
+		inputs = append(inputs, repository.PrizeInput{
+			ItemID:     p.ItemID,
+			PrizeName:  good.Name,
+			PrizeImage: good.ImageURL,
+			Weight:     w,
+			Stock:      p.Stock,
+		})
+	}
+	npw := cmd.NoPrizeWeight
+	if npw < 0 {
+		npw = 0
+	}
+	inputs = append(inputs, repository.PrizeInput{ItemID: nil, PrizeName: "谢谢参与", Weight: npw})
+	return s.Repo.ReplaceBoxConfig(ctx, boxID, cmd.ChargeOnMiss, inputs)
+}
+
+// Draw 抽奖完整 TCC 链路。
+// 奖池 = 配置进盲盒的「积分好物」+ 一行「无奖品」；中奖 = 抽到的奖项有 item_id。
+// 每次抽奖消耗 box.Cost 分：中奖必扣；未中奖按 box.ChargeOnMiss（后台可配）决定扣/退。
 func (s *Service) Draw(ctx context.Context, tenantID, userID, boxID int64) (*DrawResult, error) {
 	box, err := s.Repo.GetItem(ctx, tenantID, boxID)
 	if err != nil {
@@ -159,19 +216,20 @@ func (s *Service) Draw(ctx context.Context, tenantID, userID, boxID int64) (*Dra
 		return nil, ErrItemNotBlindbox
 	}
 
-	// Try
+	// Try：冻结积分
 	txID, err := s.Points.TryFreeze(ctx, tenantID, userID, box.Cost, s.FreezeTTL)
 	if err != nil {
 		return nil, err
 	}
 
-	// 抽奖
-	prizes, err := s.Repo.ListPrizes(ctx, boxID)
+	// 抽奖：仅在「还有份数」的奖项里加权抽取（份数 NULL = 不限量）
+	prizes, err := s.Repo.ListPrizeViews(ctx, boxID)
 	if err != nil {
 		_ = s.Points.CancelByTxID(ctx, txID)
 		return nil, err
 	}
-	if len(prizes) == 0 {
+	candidates := drawablePrizes(prizes)
+	if len(candidates) == 0 {
 		_ = s.Points.CancelByTxID(ctx, txID)
 		return nil, ErrNoPrizes
 	}
@@ -186,29 +244,42 @@ func (s *Service) Draw(ctx context.Context, tenantID, userID, boxID int64) (*Dra
 		return nil, err
 	}
 
-	prize := weightedPick(prizes)
-
-	// 判断「未中奖」
-	if isMissPrize(prize.PrizeName) {
-		_ = s.Points.CancelByTxID(ctx, txID)
-		_ = s.Repo.MarkCancelled(ctx, txID)
-		return &DrawResult{Win: false, PrizeName: prize.PrizeName, Amount: box.Cost}, nil
-	}
+	prize := pickPrize(candidates)
+	win := prize.ItemID != nil
 
 	// Confirm：扣分需绑定一个维度。盲盒消费没有专属维度，
 	// 这里取租户的第一个维度（按 sort_order）作为「消费扣减」归属。
-	dimID := s.resolveConsumptionDim(ctx, tenantID)
+	confirm := func(reason string) error {
+		dimID := s.resolveConsumptionDim(ctx, tenantID)
+		if err := s.Points.Confirm(ctx, tenantID, userID, box.Cost, dimID, reason); err != nil {
+			_ = s.Points.CancelByTxID(ctx, txID)
+			_ = s.Repo.MarkCancelled(ctx, txID)
+			return err
+		}
+		_ = s.Repo.MarkConfirmed(ctx, txID)
+		return nil
+	}
 
-	if err := s.Points.Confirm(ctx, tenantID, userID, box.Cost, dimID, "盲盒抽奖 · "+box.Name); err != nil {
+	if !win {
+		if box.ChargeOnMiss {
+			if err := confirm("盲盒抽奖 · " + box.Name + "（未中奖）"); err != nil {
+				return nil, err
+			}
+			return &DrawResult{Win: false, PrizeName: prize.PrizeName, Amount: box.Cost}, nil
+		}
 		_ = s.Points.CancelByTxID(ctx, txID)
 		_ = s.Repo.MarkCancelled(ctx, txID)
+		return &DrawResult{Win: false, PrizeName: prize.PrizeName, Amount: 0}, nil
+	}
+
+	if err := confirm("盲盒抽奖 · " + box.Name); err != nil {
 		return nil, err
 	}
-	_ = s.Repo.MarkConfirmed(ctx, txID)
 	prizeID := prize.ID
 	_ = s.Repo.CreateOrder(ctx, &domain.Order{
-		TenantID: tenantID, UserID: userID, ItemID: &boxID, PrizeID: &prizeID, Cost: box.Cost, Status: "paid",
+		TenantID: tenantID, UserID: userID, ItemID: prize.ItemID, PrizeID: &prizeID, Cost: box.Cost, Status: "paid",
 	})
+	_ = s.Repo.DecrementPrizeStock(ctx, prize.ID) // 中奖好物份数 -1（NULL 不限量则不变）
 
 	return &DrawResult{
 		Win: true, PrizeID: prize.ID, PrizeName: prize.PrizeName,
@@ -260,33 +331,43 @@ func (s *Service) resolveConsumptionDim(ctx context.Context, tenantID int64) int
 	return dims[0].ID
 }
 
-func weightedPick(prizes []domain.BlindboxPrize) domain.BlindboxPrize {
-	total := 0
+// drawablePrizes 过滤出仍有份数的奖项（份数 NULL = 不限量）。
+func drawablePrizes(prizes []repository.PrizeView) []repository.PrizeView {
+	out := make([]repository.PrizeView, 0, len(prizes))
 	for _, p := range prizes {
-		total += p.Weight
+		if p.Stock == nil || *p.Stock > 0 {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// pickPrize 在候选奖项里按 weight 加权随机抽取一项。
+func pickPrize(prizes []repository.PrizeView) repository.PrizeView {
+	weights := make([]int, len(prizes))
+	total := 0
+	for i, p := range prizes {
+		w := p.Weight
+		if w < 0 {
+			w = 0
+		}
+		weights[i] = w
+		total += w
 	}
 	if total <= 0 {
 		return prizes[0]
 	}
-	x := rand.Intn(total)
-	cum := 0
-	for _, p := range prizes {
-		cum += p.Weight
-		if x < cum {
-			return p
-		}
-	}
-	return prizes[len(prizes)-1]
+	return prizes[pickIndexByWeight(weights, rand.Intn(total))]
 }
 
-func isMissPrize(name string) bool {
-	if name == "" {
-		return true
-	}
-	for _, kw := range []string{"未中奖", "鼓励", "差一点"} {
-		if strings.Contains(name, kw) {
-			return true
+// pickIndexByWeight 返回累积权重首次覆盖 x 的下标（x ∈ [0,total)）。纯函数，便于单测。
+func pickIndexByWeight(weights []int, x int) int {
+	cum := 0
+	for i, w := range weights {
+		cum += w
+		if x < cum {
+			return i
 		}
 	}
-	return false
+	return len(weights) - 1
 }

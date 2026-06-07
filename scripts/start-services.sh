@@ -18,6 +18,8 @@ err() { printf '%s✗ %s%s\n' "$RED" "$*" "$RESET" >&2; }
 readonly LOG_DIR="$REPO_ROOT/.logs"
 mkdir -p "$LOG_DIR"
 
+export PATH="$HOME/.local/go/bin:$HOME/go/bin:$PATH"
+
 FRONTEND_REPO="${FRONTEND_REPO:-$(cd "$REPO_ROOT/.." && pwd)/culture_points_mall_web}"
 FRONTEND_GIT="${FRONTEND_GIT:-}"
 
@@ -60,7 +62,7 @@ kill_port() {
 spawn() {
   local name="$1"; local log="$2"; shift 2
   log "启动 $name → $log"
-  ( "$@" ) >"$log" 2>&1 &
+  nohup "$@" >"$log" 2>&1 < /dev/null &
   echo "$!" > "$LOG_DIR/$name.pid"
 }
 
@@ -99,7 +101,7 @@ wait_ready_mcp() {
     local code
     code="$(curl -s -o /dev/null -w '%{http_code}' -m 2 "$url" 2>/dev/null || echo 0)"
     if [[ "$code" == "401" ]]; then
-      ok "MCP 已就绪：$url（401 鉴权符合预期）"
+      ok "MCP 已就绪：${url}（401 鉴权符合预期）"
       return
     fi
     sleep 1

@@ -1,7 +1,12 @@
 package handler
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -11,11 +16,17 @@ import (
 )
 
 type Handler struct {
-	Repo *repository.GormRepo
-	Svc  *service.Service
+	Repo      *repository.GormRepo
+	Svc       *service.Service
+	UploadDir string
 }
 
-func New(r *repository.GormRepo, s *service.Service) *Handler { return &Handler{Repo: r, Svc: s} }
+func New(r *repository.GormRepo, s *service.Service, uploadDir string) *Handler {
+	if uploadDir == "" {
+		uploadDir = "./uploads"
+	}
+	return &Handler{Repo: r, Svc: s, UploadDir: uploadDir}
+}
 
 func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/api/v1/mall/items", h.list)
@@ -27,6 +38,39 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 
 func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 	rg.POST("/api/v1/admin/mall/items", h.create)
+	rg.DELETE("/api/v1/admin/mall/items/:id", h.deleteItem)
+	rg.POST("/api/v1/admin/mall/upload", h.upload)
+	rg.GET("/api/v1/admin/mall/blindbox/:id/config", h.getBoxConfig)
+	rg.PUT("/api/v1/admin/mall/blindbox/:id/config", h.putBoxConfig)
+}
+
+// upload 接收 multipart 图片，存到 UploadDir，返回可访问的相对 URL（/api/uploads/<file>）。
+func (h *Handler) upload(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(400, gin.H{"error": "缺少文件字段 file"})
+		return
+	}
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowed := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".gif": true}
+	if !allowed[ext] {
+		c.JSON(400, gin.H{"error": "仅支持 jpg/jpeg/png/webp/gif"})
+		return
+	}
+	if file.Size > 8<<20 {
+		c.JSON(400, gin.H{"error": "图片大小不能超过 8MB"})
+		return
+	}
+	if err := os.MkdirAll(h.UploadDir, 0o755); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	name := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+	if err := c.SaveUploadedFile(file, filepath.Join(h.UploadDir, name)); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"url": "/api/uploads/" + name})
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -48,7 +92,7 @@ func (h *Handler) listPrizes(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "invalid id"})
 		return
 	}
-	rows, err := h.Repo.ListPrizes(c.Request.Context(), id)
+	rows, err := h.Repo.ListPrizeViews(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -57,10 +101,12 @@ func (h *Handler) listPrizes(c *gin.Context) {
 	for _, r := range rows {
 		out = append(out, gin.H{
 			"id":         r.ID,
+			"itemId":     r.ItemID,
 			"prizeName":  r.PrizeName,
 			"prizeImage": r.PrizeImage,
 			"weight":     r.Weight,
 			"stock":      r.Stock,
+			"cost":       r.Cost,
 		})
 	}
 	c.JSON(200, gin.H{"items": out})
@@ -144,4 +190,110 @@ func (h *Handler) myOrders(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"items": rows})
+}
+
+func (h *Handler) deleteItem(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	if tid == 0 {
+		tid = 1
+	}
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if id <= 0 {
+		c.JSON(400, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.Repo.DeleteItem(c.Request.Context(), tid, id); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true})
+}
+
+// getBoxConfig 返回某盲盒的配置：盲盒信息 + 无奖品权重 + 已配奖品 + 全部可选好物。
+func (h *Handler) getBoxConfig(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	if tid == 0 {
+		tid = 1
+	}
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if id <= 0 {
+		c.JSON(400, gin.H{"error": "invalid id"})
+		return
+	}
+	box, err := h.Repo.GetItem(c.Request.Context(), tid, id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "盲盒不存在"})
+		return
+	}
+	if box.Type != "blindbox" {
+		c.JSON(400, gin.H{"error": "该商品不是盲盒"})
+		return
+	}
+	prizes, err := h.Repo.ListPrizeViews(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	goods, err := h.Repo.ListItems(c.Request.Context(), tid, "item", false)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	noPrizeWeight := 0
+	prizeRows := make([]gin.H, 0, len(prizes))
+	for _, p := range prizes {
+		if p.ItemID == nil {
+			noPrizeWeight = p.Weight
+			continue
+		}
+		prizeRows = append(prizeRows, gin.H{
+			"itemId": *p.ItemID, "weight": p.Weight, "stock": p.Stock,
+			"name": p.PrizeName, "image": p.PrizeImage, "cost": p.Cost,
+		})
+	}
+	c.JSON(200, gin.H{
+		"box":           gin.H{"id": box.ID, "name": box.Name, "cost": box.Cost, "chargeOnMiss": box.ChargeOnMiss},
+		"noPrizeWeight": noPrizeWeight,
+		"prizes":        prizeRows,
+		"goods":         goods,
+	})
+}
+
+type boxPrizeReq struct {
+	ItemID int64 `json:"itemId" binding:"required"`
+	Weight int   `json:"weight"`
+	Stock  *int  `json:"stock"`
+}
+
+type putBoxConfigReq struct {
+	ChargeOnMiss  bool          `json:"chargeOnMiss"`
+	NoPrizeWeight int           `json:"noPrizeWeight"`
+	Prizes        []boxPrizeReq `json:"prizes"`
+}
+
+func (h *Handler) putBoxConfig(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	if tid == 0 {
+		tid = 1
+	}
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if id <= 0 {
+		c.JSON(400, gin.H{"error": "invalid id"})
+		return
+	}
+	var req putBoxConfigReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	cmd := service.SaveBoxConfigCmd{ChargeOnMiss: req.ChargeOnMiss, NoPrizeWeight: req.NoPrizeWeight}
+	for _, p := range req.Prizes {
+		iid := p.ItemID
+		cmd.Prizes = append(cmd.Prizes, service.BoxPrizeCmd{ItemID: &iid, Weight: p.Weight, Stock: p.Stock})
+	}
+	if err := h.Svc.SaveBoxConfig(c.Request.Context(), tid, id, cmd); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true})
 }

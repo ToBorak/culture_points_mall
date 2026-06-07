@@ -48,11 +48,6 @@ func (r *GormRepo) UpdateItemFields(ctx context.Context, tenantID, id int64, fie
 		Where("tenant_id = ? AND id = ?", tenantID, id).Updates(fields).Error
 }
 
-// DeleteItem 硬删除商品（用于「撤销新增商品」的回撤）。
-func (r *GormRepo) DeleteItem(ctx context.Context, tenantID, id int64) error {
-	return r.DB.WithContext(ctx).Where("tenant_id = ? AND id = ?", tenantID, id).Delete(&domain.Item{}).Error
-}
-
 func (r *GormRepo) ListPrizes(ctx context.Context, boxID int64) ([]domain.BlindboxPrize, error) {
 	var rows []domain.BlindboxPrize
 	err := r.DB.WithContext(ctx).Where("box_item_id = ?", boxID).Find(&rows).Error
@@ -119,4 +114,86 @@ func (r *GormRepo) DecrementStock(ctx context.Context, itemID int64) error {
 	return r.DB.WithContext(ctx).Exec(
 		`UPDATE mall_items SET stock = stock - 1 WHERE id = ? AND stock IS NOT NULL AND stock > 0`, itemID,
 	).Error
+}
+
+// PrizeView 奖池展示/抽奖视图：关联「积分好物」取实时名称/图片/价值；
+// ItemID 为 NULL 即「无奖品」行（名称取奖池快照 prize_name，如「谢谢参与」）。
+type PrizeView struct {
+	ID         int64  `json:"id"`
+	ItemID     *int64 `json:"itemId"`
+	PrizeName  string `json:"prizeName"`
+	PrizeImage string `json:"prizeImage"`
+	Weight     int    `json:"weight"`
+	Stock      *int   `json:"stock"`
+	Cost       int    `json:"cost"` // 关联好物的兑换积分（无奖品行为 0），仅供展示
+}
+
+// ListPrizeViews 列出某盲盒的奖池（含关联好物的实时名称/图片）。好物在前、无奖品在后。
+func (r *GormRepo) ListPrizeViews(ctx context.Context, boxID int64) ([]PrizeView, error) {
+	var rows []PrizeView
+	err := r.DB.WithContext(ctx).Raw(`
+		SELECT p.id,
+		       p.item_id AS item_id,
+		       COALESCE(i.name, p.prize_name) AS prize_name,
+		       COALESCE(NULLIF(i.image_url, ''), p.prize_image) AS prize_image,
+		       p.weight,
+		       p.stock,
+		       COALESCE(i.cost, 0) AS cost
+		FROM mall_blindbox_pool p
+		LEFT JOIN mall_items i ON i.id = p.item_id
+		WHERE p.box_item_id = ?
+		ORDER BY (p.item_id IS NULL), p.id
+	`, boxID).Scan(&rows).Error
+	return rows, err
+}
+
+// DecrementPrizeStock 奖项份数非空时减 1（份数为 NULL 表示不限量）。中奖好物时调用。
+func (r *GormRepo) DecrementPrizeStock(ctx context.Context, prizeID int64) error {
+	return r.DB.WithContext(ctx).Exec(
+		`UPDATE mall_blindbox_pool SET stock = stock - 1 WHERE id = ? AND stock IS NOT NULL AND stock > 0`, prizeID,
+	).Error
+}
+
+// DeleteItem 删除商品/盲盒：连带删除其作为盲盒的奖池行（box_item_id）以及作为奖品被引用的行（item_id）。
+func (r *GormRepo) DeleteItem(ctx context.Context, tenantID, id int64) error {
+	return r.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`DELETE FROM mall_blindbox_pool WHERE box_item_id = ? OR item_id = ?`, id, id).Error; err != nil {
+			return err
+		}
+		return tx.Where("tenant_id = ? AND id = ?", tenantID, id).Delete(&domain.Item{}).Error
+	})
+}
+
+// PrizeInput 整存盲盒奖池时的单条奖项配置。ItemID 为 nil 即「无奖品」行。
+type PrizeInput struct {
+	ItemID     *int64
+	PrizeName  string
+	PrizeImage string
+	Weight     int
+	Stock      *int
+}
+
+// ReplaceBoxConfig 整存某盲盒配置：更新 charge_on_miss、清空并重建奖池。
+func (r *GormRepo) ReplaceBoxConfig(ctx context.Context, boxID int64, chargeOnMiss bool, prizes []PrizeInput) error {
+	charge := 0
+	if chargeOnMiss {
+		charge = 1
+	}
+	return r.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`UPDATE mall_items SET charge_on_miss = ? WHERE id = ? AND type = 'blindbox'`, charge, boxID).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`DELETE FROM mall_blindbox_pool WHERE box_item_id = ?`, boxID).Error; err != nil {
+			return err
+		}
+		for _, p := range prizes {
+			if err := tx.Exec(
+				`INSERT INTO mall_blindbox_pool (box_item_id, item_id, prize_name, prize_image, weight, stock) VALUES (?, ?, ?, ?, ?, ?)`,
+				boxID, p.ItemID, p.PrizeName, p.PrizeImage, p.Weight, p.Stock,
+			).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

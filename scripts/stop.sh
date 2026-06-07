@@ -23,6 +23,13 @@ for f in "$LOG_DIR"/*.pid; do
   [[ -f "$f" ]] && stop_pid_file "$f"
 done
 
+# 兼容通过 screen 常驻的本地开发会话
+for session in cpm_backend cpm_mcp cpm_frontend; do
+  if command -v screen >/dev/null 2>&1; then
+    screen -S "$session" -X quit >/dev/null 2>&1 || true
+  fi
+done
+
 # 兜底 1：按端口杀掉残留
 for port in 18080 8090 5173 5174; do
   if command -v lsof >/dev/null 2>&1; then

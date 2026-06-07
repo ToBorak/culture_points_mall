@@ -17,6 +17,7 @@ type Config struct {
 	LLM      LLMCfg      `mapstructure:"llm"`
 	Signin   SigninCfg   `mapstructure:"signin"`
 	Seed     SeedCfg     `mapstructure:"seed"`
+	Storage  StorageCfg  `mapstructure:"storage"`
 }
 
 type ServerCfg struct{ Port int }
@@ -65,8 +66,11 @@ type SigninCfg struct {
 type SeedCfg struct {
 	DefaultTenantID int64 `mapstructure:"default_tenant_id"`
 	WelcomeBonus    int   `mapstructure:"welcome_bonus"`
-	// DemoData 为 true 时生成 50 个演示用户与演示积分（仅本地演示用，生产应为 false）。
-	DemoData bool `mapstructure:"demo_data"`
+}
+
+// StorageCfg 本地文件存储（商品/奖品图片上传）。UploadDir 为空时回退到 ./uploads。
+type StorageCfg struct {
+	UploadDir string `mapstructure:"upload_dir"`
 }
 
 func Load(paths ...string) (*Config, error) {
@@ -94,6 +98,9 @@ func Load(paths ...string) (*Config, error) {
 		return nil, err
 	}
 	expandEnv(&c)
+	if c.Storage.UploadDir == "" {
+		c.Storage.UploadDir = "./uploads"
+	}
 	return &c, nil
 }
 

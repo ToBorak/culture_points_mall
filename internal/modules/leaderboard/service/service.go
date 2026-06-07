@@ -16,7 +16,8 @@ type Entry struct {
 	Name      string `json:"name"`
 	AvatarURL string `json:"avatarUrl"`
 	DeptName  string `json:"deptName"`
-	Score     int    `json:"score"`
+	Score     int    `json:"score"`  // 当前积分余额（消费会扣减）
+	Earned    int    `json:"earned"` // 累计获得积分（历史正向流水之和，不随消费减少）
 }
 
 type ListParams struct {
@@ -34,7 +35,8 @@ func (s *Service) List(ctx context.Context, p ListParams) ([]Entry, error) {
 	switch {
 	case p.Scope == "dim" && p.DimensionID > 0:
 		err := s.DB.WithContext(ctx).Raw(`
-			SELECT u.id AS user_id, u.name, u.avatar_url, COALESCE(d.name,'') AS dept_name, s.total_score AS score
+			SELECT u.id AS user_id, u.name, u.avatar_url, COALESCE(d.name,'') AS dept_name, s.total_score AS score,
+				(SELECT COALESCE(SUM(pt.amount),0) FROM point_transactions pt WHERE pt.user_id = u.id AND pt.amount > 0) AS earned
 			FROM user_dimension_scores s
 			JOIN users u ON u.id = s.user_id AND u.tenant_id = s.tenant_id
 			LEFT JOIN departments d ON d.id = u.dept_id AND d.tenant_id = u.tenant_id
@@ -49,7 +51,9 @@ func (s *Service) List(ctx context.Context, p ListParams) ([]Entry, error) {
 		err := s.DB.WithContext(ctx).Raw(`
 			SELECT
 				d.id AS user_id, d.name AS name, '' AS avatar_url, '' AS dept_name,
-				COALESCE(SUM(s.total_score), 0) AS score
+				COALESCE(SUM(s.total_score), 0) AS score,
+				(SELECT COALESCE(SUM(pt.amount),0) FROM point_transactions pt JOIN users uu ON uu.id = pt.user_id
+					WHERE uu.dept_id = d.id AND uu.tenant_id = d.tenant_id AND pt.amount > 0) AS earned
 			FROM departments d
 			LEFT JOIN users u ON u.dept_id = d.id AND u.tenant_id = d.tenant_id
 			LEFT JOIN user_dimension_scores s ON s.user_id = u.id
@@ -64,7 +68,8 @@ func (s *Service) List(ctx context.Context, p ListParams) ([]Entry, error) {
 	default:
 		err := s.DB.WithContext(ctx).Raw(`
 			SELECT u.id AS user_id, u.name, u.avatar_url, COALESCE(d.name,'') AS dept_name,
-				COALESCE(SUM(s.total_score), 0) AS score
+				COALESCE(SUM(s.total_score), 0) AS score,
+				(SELECT COALESCE(SUM(pt.amount),0) FROM point_transactions pt WHERE pt.user_id = u.id AND pt.amount > 0) AS earned
 			FROM users u
 			LEFT JOIN user_dimension_scores s ON s.user_id = u.id
 			LEFT JOIN departments d ON d.id = u.dept_id AND d.tenant_id = u.tenant_id

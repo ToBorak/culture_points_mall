@@ -14,11 +14,6 @@ type Seeder struct {
 	DefaultTenantID int64
 	// DimensionsFile 价值观维度 YAML 配置文件路径，默认 "./configs/value_dimensions.yaml"
 	DimensionsFile string
-	// WelcomeBonus 每个 seed 用户的默认积分，写入首维度 customer_first。
-	// 0 表示沿用旧 demo 随机分布；>0 则给每人精确这么多分。
-	WelcomeBonus int
-	// DemoData 为 true 时才生成 50 个演示用户与演示积分（仅本地演示，生产保持 false）。
-	DemoData bool
 }
 
 func (s *Seeder) Run(ctx context.Context) error {
@@ -31,11 +26,6 @@ func (s *Seeder) Run(ctx context.Context) error {
 	if err := s.seedDepartments(); err != nil {
 		return err
 	}
-	if s.DemoData {
-		if err := s.seedUsers(); err != nil {
-			return err
-		}
-	}
 	if err := s.seedBadges(); err != nil {
 		return err
 	}
@@ -44,11 +34,6 @@ func (s *Seeder) Run(ctx context.Context) error {
 	}
 	if err := s.seedBlindboxPool(); err != nil {
 		return err
-	}
-	if s.DemoData {
-		if err := s.seedDemoPoints(); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -114,27 +99,6 @@ func (s *Seeder) seedDepartments() error {
 	return nil
 }
 
-func (s *Seeder) seedUsers() error {
-	if cnt := s.count("users", s.DefaultTenantID); cnt >= 50 {
-		return nil
-	}
-	for i := 1; i <= 50; i++ {
-		dept := ((i - 1) % 3) + 1
-		err := s.DB.Exec(
-			`INSERT INTO users (tenant_id, ding_user_id, name, avatar_url, dept_id) VALUES (?, ?, ?, ?, ?)`,
-			s.DefaultTenantID,
-			fmt.Sprintf("u%03d", i),
-			fmt.Sprintf("员工%02d", i),
-			fmt.Sprintf("https://api.dicebear.com/9.x/notionists/svg?seed=user-%03d", i),
-			dept,
-		).Error
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *Seeder) seedBadges() error {
 	// 自愈：已是新版里程碑勋章（存在"初来乍到"）则跳过；否则清掉旧勋章后重建，
 	// 便于从旧的 24 枚价值观勋章平滑迁移（无需 drop 整库）。
@@ -182,152 +146,104 @@ func (s *Seeder) seedBadges() error {
 }
 
 func (s *Seeder) seedMallItems() error {
-	if err := s.syncDefaultBlindboxCosts(); err != nil {
-		return err
-	}
 	if cnt := s.count("mall_items", s.DefaultTenantID); cnt > 0 {
 		return nil
 	}
-	rows := []struct {
-		typ   string
+	// 积分好物（type=item）。图片走后端静态托管 /api/uploads/seed/*（种子图随仓库提交）。
+	goods := []struct {
 		name  string
 		cost  int
 		stock *int
+		image string
 	}{
-		{"item", "周边帆布袋", 50, intPtr(100)},
-		{"item", "公司定制 T 恤", 120, intPtr(50)},
-		{"item", "咖啡券", 30, intPtr(200)},
-		{"blindbox", "AI 文化盲盒 · 普通", 5, nil},
-		{"blindbox", "AI 文化盲盒 · 闪光", 10, nil},
+		{"定制鼠标垫", 8, nil, "/api/uploads/seed/mousepad.jpeg"},
+		{"帽子", 30, nil, "/api/uploads/seed/hat.jpeg"},
+		{"定制帆布袋", 40, nil, "/api/uploads/seed/canvas-bag.jpeg"},
+		{"定制文化衫（白色-纯logo）", 55, nil, "/api/uploads/seed/tshirt-white.jpeg"},
+		{"定制文化衫（黑色-蛇年主题）", 55, nil, "/api/uploads/seed/tshirt-black.png"},
+		{"定制水杯", 80, nil, "/api/uploads/seed/cup.jpeg"},
+		{"100元喜茶卡", 100, nil, "/api/uploads/seed/heytea-card.jpeg"},
+		// 实时上新占位：cost=0 → 前台展示「实时上新」不可兑换，也不进盲盒奖池
+		{"其他定制节假日礼品", 0, nil, ""},
 	}
-	for _, r := range rows {
+	for _, g := range goods {
 		var stock any = nil
-		if r.stock != nil {
-			stock = *r.stock
+		if g.stock != nil {
+			stock = *g.stock
 		}
-		err := s.DB.Exec(
-			`INSERT INTO mall_items (tenant_id, type, name, cost, stock, image_url) VALUES (?, ?, ?, ?, ?, ?)`,
-			s.DefaultTenantID, r.typ, r.name, r.cost, stock,
-			fmt.Sprintf("https://api.dicebear.com/9.x/shapes/svg?seed=item-%s", r.name),
-		).Error
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *Seeder) syncDefaultBlindboxCosts() error {
-	updates := []struct {
-		name string
-		cost int
-	}{
-		{"AI 文化盲盒 · 普通", 5},
-		{"AI 文化盲盒 · 闪光", 10},
-	}
-	for _, u := range updates {
 		if err := s.DB.Exec(
-			`UPDATE mall_items SET cost = ? WHERE tenant_id = ? AND type = 'blindbox' AND name = ?`,
-			u.cost, s.DefaultTenantID, u.name,
+			`INSERT INTO mall_items (tenant_id, type, name, cost, stock, image_url) VALUES (?, 'item', ?, ?, ?, ?)`,
+			s.DefaultTenantID, g.name, g.cost, stock, g.image,
 		).Error; err != nil {
 			return err
 		}
 	}
-	return nil
-}
-
-func (s *Seeder) seedBlindboxPool() error {
-	var boxIDs []int64
-	s.DB.Raw(`SELECT id FROM mall_items WHERE tenant_id = ? AND type = 'blindbox'`, s.DefaultTenantID).Scan(&boxIDs)
-	for _, boxID := range boxIDs {
-		var cnt int64
-		s.DB.Raw(`SELECT COUNT(*) FROM mall_blindbox_pool WHERE box_item_id = ?`, boxID).Scan(&cnt)
-		if cnt > 0 {
-			continue
-		}
-		prizes := []struct {
-			name   string
-			weight int
-		}{
-			{"无中奖（鼓励气泡）", 60},
-			{"咖啡券", 25},
-			{"帆布袋", 10},
-			{"公司定制 T 恤", 5},
-		}
-		for _, p := range prizes {
-			err := s.DB.Exec(
-				`INSERT INTO mall_blindbox_pool (box_item_id, prize_name, prize_image, weight) VALUES (?, ?, ?, ?)`,
-				boxID, p.name, fmt.Sprintf("https://api.dicebear.com/9.x/shapes/svg?seed=prize-%s", p.name), p.weight,
-			).Error
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (s *Seeder) seedDemoPoints() error {
-	var existing int64
-	s.DB.Raw("SELECT COUNT(*) FROM point_transactions WHERE tenant_id = ?", s.DefaultTenantID).Scan(&existing)
-	if existing > 0 {
-		return nil
-	}
-
-	bonus := s.WelcomeBonus
-	if bonus <= 0 {
-		bonus = 100000 // 默认每个 seed 用户起始 100,000 分
-	}
-
-	// 第一步：给每个用户发放欢迎积分（统一到 customer_first 维度 = id 1，与运行时 welcomeGranter 一致）
-	for uid := int64(1); uid <= 50; uid++ {
-		if err := s.grantWelcome(uid, bonus); err != nil {
-			return err
-		}
-	}
-
-	// 第二步：在其它维度撒一些演示分数，让排行榜/雷达有变化
-	for uid := int64(1); uid <= 50; uid++ {
-		n := 3 + (uid % 6)
-		for i := int64(0); i < n; i++ {
-			dimID := (i % 6) + 1
-			if dimID == 1 {
-				continue // customer_first 已经发过欢迎积分
-			}
-			amt := 10 + int(uid+i)*3
-			_ = s.DB.Exec(
-				`INSERT INTO point_transactions (tenant_id, user_id, dimension_id, amount, reason) VALUES (?, ?, ?, ?, ?)`,
-				s.DefaultTenantID, uid, dimID, amt, "演示加分",
-			).Error
-			_ = s.DB.Exec(`
-				INSERT INTO user_dimension_scores (user_id, tenant_id, dimension_id, total_score, quarter_score, year_score)
-				VALUES (?, ?, ?, ?, ?, ?)
-				ON DUPLICATE KEY UPDATE
-					total_score = total_score + VALUES(total_score),
-					quarter_score = quarter_score + VALUES(quarter_score),
-					year_score = year_score + VALUES(year_score)
-			`, uid, s.DefaultTenantID, dimID, amt, amt, amt).Error
-		}
-	}
-	return nil
-}
-
-// grantWelcome 写一条 100,000 欢迎积分流水 + 维度汇总，全部计入 customer_first（dim_id=1）
-func (s *Seeder) grantWelcome(uid int64, amount int) error {
+	// 惊喜盲盒：5 分/次，默认「未中奖也扣分」(charge_on_miss=1，后台可改)
 	if err := s.DB.Exec(
-		`INSERT INTO point_transactions (tenant_id, user_id, dimension_id, amount, reason) VALUES (?, ?, 1, ?, '新员工欢迎积分')`,
-		s.DefaultTenantID, uid, amount,
+		`INSERT INTO mall_items (tenant_id, type, name, cost, stock, image_url, charge_on_miss) VALUES (?, 'blindbox', ?, ?, NULL, ?, 1)`,
+		s.DefaultTenantID, "惊喜盲盒", 5, "",
 	).Error; err != nil {
 		return err
 	}
-	return s.DB.Exec(`
-		INSERT INTO user_dimension_scores (user_id, tenant_id, dimension_id, total_score, quarter_score, year_score)
-		VALUES (?, ?, 1, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE
-			total_score = total_score + VALUES(total_score),
-			quarter_score = quarter_score + VALUES(quarter_score),
-			year_score = year_score + VALUES(year_score)
-	`, uid, s.DefaultTenantID, amount, amount, amount).Error
+	return nil
+}
+
+// seedBlindboxPool 为「惊喜盲盒」灌入默认奖池：7 件积分好物（关联 item_id）+ 一行「无奖品」。
+// 默认按价梯度给权重，喜茶卡限 1 份；后台可随时在「奖池配置」里调整。
+func (s *Seeder) seedBlindboxPool() error {
+	var boxID int64
+	s.DB.Raw(`SELECT id FROM mall_items WHERE tenant_id = ? AND type = 'blindbox' AND name = ? LIMIT 1`,
+		s.DefaultTenantID, "惊喜盲盒").Scan(&boxID)
+	if boxID == 0 {
+		return nil
+	}
+	var cnt int64
+	s.DB.Raw(`SELECT COUNT(*) FROM mall_blindbox_pool WHERE box_item_id = ?`, boxID).Scan(&cnt)
+	if cnt > 0 {
+		return nil
+	}
+	prizes := []struct {
+		name   string
+		weight int
+		stock  *int
+	}{
+		{"定制鼠标垫", 30, nil},
+		{"帽子", 20, nil},
+		{"定制帆布袋", 12, nil},
+		{"定制文化衫（白色-纯logo）", 6, nil},
+		{"定制文化衫（黑色-蛇年主题）", 6, nil},
+		{"定制水杯", 4, nil},
+		{"100元喜茶卡", 2, intPtr(1)},
+	}
+	for _, p := range prizes {
+		var g struct {
+			ID       int64
+			ImageURL string
+		}
+		s.DB.Raw(`SELECT id, image_url FROM mall_items WHERE tenant_id = ? AND type = 'item' AND name = ? LIMIT 1`,
+			s.DefaultTenantID, p.name).Scan(&g)
+		if g.ID == 0 {
+			continue
+		}
+		var stock any = nil
+		if p.stock != nil {
+			stock = *p.stock
+		}
+		if err := s.DB.Exec(
+			`INSERT INTO mall_blindbox_pool (box_item_id, item_id, prize_name, prize_image, weight, stock) VALUES (?, ?, ?, ?, ?, ?)`,
+			boxID, g.ID, p.name, g.ImageURL, p.weight, stock,
+		).Error; err != nil {
+			return err
+		}
+	}
+	// 无奖品行（item_id=NULL）
+	if err := s.DB.Exec(
+		`INSERT INTO mall_blindbox_pool (box_item_id, item_id, prize_name, prize_image, weight, stock) VALUES (?, NULL, ?, '', ?, NULL)`,
+		boxID, "谢谢参与", 80,
+	).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Seeder) count(table string, tenantID int64) int64 {

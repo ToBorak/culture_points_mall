@@ -84,6 +84,14 @@ func Build(deps Deps) *gin.Engine {
 	r := gin.Default()
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
 
+	// 商品/奖品图片静态托管。挂在 /api/uploads 下：该前缀在 dev 与生产都已转发到后端，
+	// 故前端用相对路径 /api/uploads/<file> 即可加载，无需额外代理配置。
+	uploadDir := deps.Cfg.Storage.UploadDir
+	if uploadDir == "" {
+		uploadDir = "./uploads"
+	}
+	r.Static("/api/uploads", uploadDir)
+
 	valuesRepo := valuesrepo.New(deps.DB)
 	valuesSvc := valuessvc.New(valuesRepo)
 	pointsRepo := pointsrepo.New(deps.DB)
@@ -124,7 +132,7 @@ func Build(deps Deps) *gin.Engine {
 	signinHandlerInst.RegisterWS(open)
 	mallRepo := mallrepo.New(deps.DB)
 	mallSvc := mallsvc.New(mallRepo, pointsSvc, valuesSvc)
-	mallHandler := mallh.New(mallRepo, mallSvc)
+	mallHandler := mallh.New(mallRepo, mallSvc, uploadDir)
 	mallHandler.Register(authed)
 
 	// AI 洞察（DNA 报告 / 教练 / 挑战 / 排行解读）

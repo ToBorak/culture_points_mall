@@ -10,3 +10,7 @@ configs/config.yaml
 # IDE / build artifacts
 .idea/
 /migrate
+
+# 图片上传目录：运行期上传不入库，仅保留种子图（uploads/seed/）
+/uploads/*
+!/uploads/seed/

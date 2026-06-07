@@ -42,7 +42,6 @@ func (h *Handler) WithGranter(g WelcomeBonusGranter) *Handler {
 
 func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.POST("/auth/dingtalk/login", h.dingLogin)
-	rg.POST("/auth/dev/login", h.devLogin)
 }
 
 type dingLoginReq struct {
@@ -88,36 +87,6 @@ func (h *Handler) dingLogin(c *gin.Context) {
 		return
 	}
 	c.JSON(200, loginResp{Token: tok, UserID: userID, TenantID: tid, Name: name})
-}
-
-type devLoginReq struct {
-	UserID int64 `json:"userId" binding:"required"`
-}
-
-func (h *Handler) devLogin(c *gin.Context) {
-	var req devLoginReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-	tid := h.Cfg.Seed.DefaultTenantID
-	var row struct {
-		ID         int64
-		Name       string
-		DingUserID string
-		IsAdmin    bool
-	}
-	if err := h.DB.WithContext(c.Request.Context()).
-		Raw("SELECT id, name, ding_user_id, is_admin FROM users WHERE id = ? AND tenant_id = ?", req.UserID, tid).
-		Scan(&row).Error; err != nil || row.ID == 0 {
-		c.JSON(404, gin.H{"error": "user not found"})
-		return
-	}
-	// dev 登录是「管理后台」的开发态入口（员工端走钉钉登录，不用此接口），
-	// DEMO 模式下统一授予 admin 角色，便于任意 User ID 操作后台。生产应禁用本接口。
-	roles := []string{"admin"}
-	tok, _ := h.Signer.Issue(req.UserID, tid, roles)
-	c.JSON(200, loginResp{Token: tok, UserID: req.UserID, TenantID: tid, Name: row.Name})
 }
 
 func (h *Handler) upsertUser(c *gin.Context, tid int64, du dingtalk.User) (int64, string, error) {
