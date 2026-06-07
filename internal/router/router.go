@@ -105,7 +105,7 @@ func Build(deps Deps) *gin.Engine {
 	pointsSvc := pointssvc.New(deps.DB, pointsRepo, valuesSvc, deps.Redis)
 	starsSvc := starssvc.New(starsrepo.New(deps.DB), pointsSvc, deps.Cfg.Stars, deps.LLM)
 	starsHandler := starsh.New(starsSvc)
-	pubService := pubsvc.New(pubrepo.New(deps.DB))
+	pubService := pubsvc.New(pubrepo.New(deps.DB), deps.LLM)
 	pubHandler := pubh.New(pubService)
 
 	signer := &auth.Signer{Secret: []byte(deps.Cfg.JWT.Secret), TTL: time.Duration(deps.Cfg.JWT.TTLHours) * time.Hour}

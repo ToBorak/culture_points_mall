@@ -2,6 +2,16 @@ package domain
 
 // 聚合行：只读查源表得到，marshal 进 snapshot.data_json。
 
+// SelectedNominationRow 已入选提名行，供 AI② 生成案例文章使用（只读查 stars 表）。
+type SelectedNominationRow struct {
+	NominationID int64  `json:"nominationId"`
+	NomineeName  string `json:"nomineeName"`
+	Dimension    string `json:"dimension"`
+	DimensionID  int64  `json:"dimensionId"`
+	CaseText     string `json:"caseText"`
+	CaseRefined  string `json:"caseRefined"`
+}
+
 type StarWinnerRow struct {
 	UserID    int64  `json:"userId"`
 	Name      string `json:"name"`

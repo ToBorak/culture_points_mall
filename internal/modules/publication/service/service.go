@@ -4,21 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/standardsoftware/culture_points_mall/internal/modules/publication/domain"
+	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
 )
 
 // Service 文化刊业务层，仅依赖 domain.Repository 接口，不依赖任何具体 repo 实现。
 type Service struct {
 	Repo domain.Repository
+	LLM  llm.Client
 }
 
-// New 构造 Service。
-func New(repo domain.Repository) *Service { return &Service{Repo: repo} }
+// New 构造 Service。llmC 可为 nil（nil 时 AI 端点返 503，主流程不受影响）。
+func New(repo domain.Repository, llmC llm.Client) *Service { return &Service{Repo: repo, LLM: llmC} }
 
 // ErrNotDraft 刊物已发布/归档，不能再修改栏目。
 var ErrNotDraft = errors.New("刊物已发布，不能再改")
+
+// ErrLLMUnavailable AI 能力未配置（LLM 客户端为 nil）。
+var ErrLLMUnavailable = errors.New("AI 能力未配置")
 
 // ─── Task 5: 建期 / 配栏目 / 文章 ─────────────────────────────────────────────
 
@@ -193,6 +200,150 @@ func (s *Service) GetDetail(ctx context.Context, tenantID, pubID int64) (*Publis
 		return nil, err
 	}
 	return s.assemble(ctx, tenantID, pub)
+}
+
+// ─── Task 4 AI①: 一键编排 ─────────────────────────────────────────────────────
+
+// Compose AI① 一键编排：基于已聚合快照生成刊首语 + 各栏目导语，写回 publications.intro_text / sections.ai_copy。
+// 单栏目导语失败不阻断整体。
+func (s *Service) Compose(ctx context.Context, tenantID, pubID int64) error {
+	if s.LLM == nil {
+		return ErrLLMUnavailable
+	}
+	pub, err := s.Repo.GetPublication(ctx, tenantID, pubID)
+	if err != nil {
+		return err
+	}
+	sections, err := s.Repo.ListSections(ctx, pubID)
+	if err != nil {
+		return err
+	}
+	snaps, err := s.Repo.ListSnapshots(ctx, pubID)
+	if err != nil {
+		return err
+	}
+	snapBySection := make(map[int64]string, len(snaps))
+	for _, sn := range snaps {
+		snapBySection[sn.SectionID] = sn.DataJSON
+	}
+	// 1) 刊首语：喂各栏目标题 + 快照摘要
+	var ctxBuf strings.Builder
+	for _, sec := range sections {
+		if !sec.Visible {
+			continue
+		}
+		fmt.Fprintf(&ctxBuf, "栏目【%s】", sec.Title)
+		if raw, ok := snapBySection[sec.ID]; ok {
+			snippet := raw
+			if len(snippet) > 300 {
+				snippet = snippet[:300]
+			}
+			fmt.Fprintf(&ctxBuf, "数据：%s", snippet)
+		}
+		ctxBuf.WriteString("\n")
+	}
+	intro, err := llm.MessagesText(ctx,
+		s.LLM,
+		`你是企业文化刊的主编，写一段温暖有力的刊首语。`,
+		fmt.Sprintf("本期《%s》包含以下栏目与数据：\n%s\n请写 120-180 字刊首语，不要标题，直接正文。", pub.Title, ctxBuf.String()),
+		800)
+	if err != nil {
+		return err
+	}
+	if err := s.Repo.UpdatePublicationIntro(ctx, tenantID, pubID, intro); err != nil {
+		return err
+	}
+	// 2) 各栏目导语
+	for _, sec := range sections {
+		if !sec.Visible {
+			continue
+		}
+		data := snapBySection[sec.ID]
+		cp, copyErr := llm.MessagesText(ctx,
+			s.LLM,
+			`你是文化刊编辑，为栏目写一句话导语（30 字内），点题、有感染力。`,
+			fmt.Sprintf("栏目标题：%s\n栏目数据：%s\n只输出导语正文。", sec.Title, data),
+			200)
+		if copyErr != nil {
+			continue // 单栏目失败不阻断
+		}
+		_ = s.Repo.UpdateSectionAICopy(ctx, sec.ID, strings.TrimSpace(cp))
+	}
+	return nil
+}
+
+// ─── Task 5 AI②: 发刊生成案例文章 ───────────────────────────────────────────────
+
+// GenerateCaseArticles AI② B：把本季已入选提名生成"践行案例"文章（幂等：按 source_id 去重）。
+// 返回本次新建的文章数量。
+func (s *Service) GenerateCaseArticles(ctx context.Context, tenantID, pubID int64) (int, error) {
+	if s.LLM == nil {
+		return 0, ErrLLMUnavailable
+	}
+	pub, err := s.Repo.GetPublication(ctx, tenantID, pubID)
+	if err != nil {
+		return 0, err
+	}
+	if pub.SeasonID == nil {
+		return 0, nil
+	}
+	noms, err := s.Repo.ListSelectedNominations(ctx, tenantID, *pub.SeasonID)
+	if err != nil {
+		return 0, err
+	}
+	created := 0
+	for _, n := range noms {
+		exists, err := s.Repo.ExistsArticleFromNomination(ctx, tenantID, pubID, n.NominationID)
+		if err != nil {
+			return created, err
+		}
+		if exists {
+			continue
+		}
+		body := n.CaseRefined
+		if strings.TrimSpace(body) == "" {
+			// 没有提炼过则现炼一段
+			t, llmErr := llm.MessagesText(ctx, s.LLM,
+				`你是文化刊编辑，把提名理由写成一篇 100-150 字的践行小故事，第三人称、温暖具体。`,
+				fmt.Sprintf("被提名人：%s\n价值观：%s\n提名理由：%s\n只输出正文。", n.NomineeName, n.Dimension, n.CaseText), 600)
+			if llmErr != nil {
+				continue
+			}
+			body = strings.TrimSpace(t)
+		}
+		nomID := n.NominationID
+		dimID := n.DimensionID
+		title := fmt.Sprintf("%s · %s", n.NomineeName, n.Dimension)
+		if err := s.Repo.CreateArticle(ctx, &domain.Article{
+			TenantID: tenantID, PublicationID: &pubID,
+			Title: title, ContentHTML: body,
+			SourceType: domain.ArticleFromNomination, SourceID: &nomID,
+			ValueDimensionID: &dimID, Status: domain.ArticleDraft,
+		}); err != nil {
+			return created, err
+		}
+		created++
+	}
+	return created, nil
+}
+
+// ─── Task 6 AI④: 文化官问答 ──────────────────────────────────────────────────────
+
+// CultureQA AI④ 文化官问答：无状态，喂公司价值观上下文回答员工提问。
+func (s *Service) CultureQA(ctx context.Context, tenantID int64, question string) (string, error) {
+	if s.LLM == nil {
+		return "", ErrLLMUnavailable
+	}
+	dims, _ := s.Repo.ListValueDimensions(ctx, tenantID)
+	var vb strings.Builder
+	for _, d := range dims {
+		fmt.Fprintf(&vb, "- %s：%s\n", d.Name, d.Description)
+	}
+	system := fmt.Sprintf(`你是公司的"AI 文化官"，用亲切口吻解答员工关于企业文化与价值观的问题。
+公司核心价值观：
+%s
+回答简洁（150 字内）、贴合公司语境，不知道就坦诚说不确定。`, vb.String())
+	return llm.MessagesText(ctx, s.LLM, system, question, 800)
 }
 
 // assemble 组装可见栏目（按 sort_order ASC）。

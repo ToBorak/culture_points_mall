@@ -111,6 +111,47 @@ func (r *GormRepo) ListSnapshots(ctx context.Context, publicationID int64) ([]do
 	return rows, err
 }
 
+func (r *GormRepo) UpdatePublicationIntro(ctx context.Context, tenantID, id int64, intro string) error {
+	return r.DB.WithContext(ctx).Model(&domain.Publication{}).
+		Where("tenant_id = ? AND id = ?", tenantID, id).Update("intro_text", intro).Error
+}
+
+func (r *GormRepo) UpdateSectionAICopy(ctx context.Context, sectionID int64, aiCopy string) error {
+	return r.DB.WithContext(ctx).Model(&domain.Section{}).
+		Where("id = ?", sectionID).Update("ai_copy", aiCopy).Error
+}
+
+func (r *GormRepo) ListSelectedNominations(ctx context.Context, tenantID, seasonID int64) ([]domain.SelectedNominationRow, error) {
+	var rows []domain.SelectedNominationRow
+	err := r.DB.WithContext(ctx).
+		Table("star_nominations n").
+		Select("n.id as nomination_id, u.name as nominee_name, d.name as dimension, n.dimension_id, n.case_text, COALESCE(n.case_refined,'') as case_refined").
+		Joins("JOIN users u ON u.id = n.nominee_id").
+		Joins("JOIN value_dimensions d ON d.id = n.dimension_id").
+		Where("n.tenant_id = ? AND n.season_id = ? AND n.status = 'selected'", tenantID, seasonID).
+		Order("n.id ASC").Scan(&rows).Error
+	return rows, err
+}
+
+func (r *GormRepo) ExistsArticleFromNomination(ctx context.Context, tenantID, publicationID, nominationID int64) (bool, error) {
+	var cnt int64
+	err := r.DB.WithContext(ctx).Model(&domain.Article{}).
+		Where("tenant_id = ? AND publication_id = ? AND source_type = ? AND source_id = ?",
+			tenantID, publicationID, domain.ArticleFromNomination, nominationID).
+		Count(&cnt).Error
+	return cnt > 0, err
+}
+
+func (r *GormRepo) ListValueDimensions(ctx context.Context, tenantID int64) ([]domain.ValueRow, error) {
+	var rows []domain.ValueRow
+	err := r.DB.WithContext(ctx).
+		Table("value_dimensions").
+		Select("id as dimension_id, name, description, icon, color, 0 as nomination_count").
+		Where("tenant_id = ? AND enabled = 1", tenantID).
+		Order("sort_order ASC, id ASC").Scan(&rows).Error
+	return rows, err
+}
+
 // applyWindow 给带 created/earned/start 时间列的聚合加可选时间窗。
 func applyWindow(q *gorm.DB, col string, start, end *time.Time) *gorm.DB {
 	if start != nil {

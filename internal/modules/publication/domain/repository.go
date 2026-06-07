@@ -26,6 +26,17 @@ type Repository interface {
 	UpsertSnapshot(ctx context.Context, s *Snapshot) error
 	ListSnapshots(ctx context.Context, publicationID int64) ([]Snapshot, error)
 
+	// AI 写回
+	UpdatePublicationIntro(ctx context.Context, tenantID, id int64, intro string) error
+	UpdateSectionAICopy(ctx context.Context, sectionID int64, aiCopy string) error
+
+	// AI② 案例文章：只读查 stars 表（跨模块只读，不写 stars）
+	ListSelectedNominations(ctx context.Context, tenantID, seasonID int64) ([]SelectedNominationRow, error)
+	ExistsArticleFromNomination(ctx context.Context, tenantID, publicationID, nominationID int64) (bool, error)
+
+	// AI④ 文化官问答：读价值观上下文
+	ListValueDimensions(ctx context.Context, tenantID int64) ([]ValueRow, error)
+
 	// 聚合（只读查源表）
 	AggStarWinners(ctx context.Context, tenantID, seasonID int64) ([]StarWinnerRow, error)
 	AggValues(ctx context.Context, tenantID, seasonID int64) ([]ValueRow, error)

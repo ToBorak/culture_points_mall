@@ -27,6 +27,8 @@ func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 	rg.POST("/admin/publications/:id/articles", h.upsertArticle)
 	rg.POST("/admin/publications/:id/publish", h.publish)
 	rg.GET("/admin/publications/:id", h.adminDetail)
+	rg.POST("/admin/publications/:id/ai-compose", h.aiCompose)
+	rg.POST("/admin/publications/:id/ai-cases", h.aiCases)
 }
 
 // Register 挂载员工端只读路由（需登录鉴权，由路由组在外层保证）。
@@ -35,6 +37,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/api/v1/publications", h.list)
 	rg.GET("/api/v1/publications/current", h.current)
 	rg.GET("/api/v1/publications/:id", h.detail)
+	rg.POST("/api/v1/culture-qa/ask", h.cultureQA)
 }
 
 // ─── Admin handlers ────────────────────────────────────────────────────────────
@@ -218,4 +221,59 @@ func (h *Handler) detail(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, v)
+}
+
+// ─── AI 端点 ──────────────────────────────────────────────────────────────────
+
+func (h *Handler) aiCompose(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	pubID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err := h.Svc.Compose(c.Request.Context(), tid, pubID); err != nil {
+		switch {
+		case errors.Is(err, pubsvc.ErrLLMUnavailable):
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (h *Handler) aiCases(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	pubID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	n, err := h.Svc.GenerateCaseArticles(c.Request.Context(), tid, pubID)
+	if err != nil {
+		if errors.Is(err, pubsvc.ErrLLMUnavailable) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"created": n})
+}
+
+func (h *Handler) cultureQA(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	var req struct {
+		Question string `json:"question" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	ans, err := h.Svc.CultureQA(c.Request.Context(), tid, req.Question)
+	if err != nil {
+		if errors.Is(err, pubsvc.ErrLLMUnavailable) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"answer": ans})
 }

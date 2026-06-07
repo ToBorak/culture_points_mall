@@ -71,9 +71,9 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// newTestSvc 构建真实 Service（不 mock 任何项目自有代码）。
+// newTestSvc 构建真实 Service（不 mock 任何项目自有代码）。llm 传 nil，AI 功能不参与集成测试。
 func newTestSvc() *pubsvc.Service {
-	return pubsvc.New(pubrepo.New(testDB))
+	return pubsvc.New(pubrepo.New(testDB), nil)
 }
 
 // truncateAll 隔离每个用例：清空测试相关表。
