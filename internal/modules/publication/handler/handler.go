@@ -29,6 +29,7 @@ func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 	rg.GET("/admin/publications/:id", h.adminDetail)
 	rg.POST("/admin/publications/:id/ai-compose", h.aiCompose)
 	rg.POST("/admin/publications/:id/ai-cases", h.aiCases)
+	rg.POST("/admin/publications/:id/push-dingtalk", h.pushDingtalk)
 }
 
 // Register 挂载员工端只读路由（需登录鉴权，由路由组在外层保证）。
@@ -276,4 +277,25 @@ func (h *Handler) cultureQA(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"answer": ans})
+}
+
+func (h *Handler) pushDingtalk(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	pubID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	var req struct {
+		GroupId string `json:"groupId" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.Svc.PushDingtalk(c.Request.Context(), tid, pubID, req.GroupId); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/standardsoftware/culture_points_mall/internal/modules/publication/domain"
+	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
 )
 
@@ -16,10 +17,13 @@ import (
 type Service struct {
 	Repo domain.Repository
 	LLM  llm.Client
+	Ding dingtalk.Client
 }
 
-// New 构造 Service。llmC 可为 nil（nil 时 AI 端点返 503，主流程不受影响）。
-func New(repo domain.Repository, llmC llm.Client) *Service { return &Service{Repo: repo, LLM: llmC} }
+// New 构造 Service。llmC/ding 可为 nil（nil 时 AI/推送端点返 503，主流程不受影响）。
+func New(repo domain.Repository, llmC llm.Client, ding dingtalk.Client) *Service {
+	return &Service{Repo: repo, LLM: llmC, Ding: ding}
+}
 
 // ErrNotDraft 刊物已发布/归档，不能再修改栏目。
 var ErrNotDraft = errors.New("刊物已发布，不能再改")
@@ -344,6 +348,29 @@ func (s *Service) CultureQA(ctx context.Context, tenantID int64, question string
 %s
 回答简洁（150 字内）、贴合公司语境，不知道就坦诚说不确定。`, vb.String())
 	return llm.MessagesText(ctx, s.LLM, system, question, 800)
+}
+
+// ─── Task 7: 钉钉发刊推送 ──────────────────────────────────────────────────────
+
+// PushDingtalk 把已发布刊物的摘要推到指定群机器人（groupID=config.dingtalk.robots[].id）。
+func (s *Service) PushDingtalk(ctx context.Context, tenantID, pubID int64, groupID string) error {
+	pub, err := s.Repo.GetPublication(ctx, tenantID, pubID)
+	if err != nil {
+		return err
+	}
+	intro := ""
+	if pub.IntroText != nil {
+		intro = *pub.IntroText
+	}
+	detail := intro
+	if detail == "" {
+		detail = "本期文化刊已发布，快来 H5 查看星标榜、获奖与价值观专区！"
+	}
+	return s.Ding.BotBroadcast(ctx, groupID, dingtalk.Card{
+		Title:  "📖 " + pub.Title + " 已发布",
+		Detail: detail,
+		Extra:  map[string]any{"publicationId": pub.ID, "periodCode": pub.PeriodCode},
+	})
 }
 
 // assemble 组装可见栏目（按 sort_order ASC）。
