@@ -145,9 +145,10 @@ func (s *Service) Nominate(ctx context.Context, cmd NominateCmd) (*domain.Nomina
 			})
 		}
 	}
-	// AI② best-effort：提炼案例 + 价值观标签，失败不影响提报
+	// AI② best-effort：提炼案例 + 价值观标签。异步执行，避免 LLM 耗时阻塞提报提交；
+	// 用 context.Background()（请求 ctx 在 handler 返回后会被取消）。失败/慢都不影响报名。
 	if s.LLM != nil {
-		s.refineNomination(ctx, cmd.TenantID, n)
+		go s.refineNomination(context.Background(), cmd.TenantID, n)
 	}
 	return n, nil
 }
