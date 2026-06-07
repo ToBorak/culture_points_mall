@@ -45,6 +45,9 @@ import (
 	schedulesvc "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/service"
 	scheduleh "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/handler"
 	publishmod "github.com/standardsoftware/culture_points_mall/internal/modules/publish"
+	starsh "github.com/standardsoftware/culture_points_mall/internal/modules/stars/handler"
+	starsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/stars/repository"
+	starssvc "github.com/standardsoftware/culture_points_mall/internal/modules/stars/service"
 )
 
 type Deps struct {
@@ -96,6 +99,8 @@ func Build(deps Deps) *gin.Engine {
 	valuesSvc := valuessvc.New(valuesRepo)
 	pointsRepo := pointsrepo.New(deps.DB)
 	pointsSvc := pointssvc.New(deps.DB, pointsRepo, valuesSvc, deps.Redis)
+	starsSvc := starssvc.New(starsrepo.New(deps.DB), pointsSvc, deps.Cfg.Stars)
+	starsHandler := starsh.New(starsSvc)
 
 	signer := &auth.Signer{Secret: []byte(deps.Cfg.JWT.Secret), TTL: time.Duration(deps.Cfg.JWT.TTLHours) * time.Hour}
 
@@ -134,6 +139,7 @@ func Build(deps Deps) *gin.Engine {
 	mallSvc := mallsvc.New(mallRepo, pointsSvc, valuesSvc)
 	mallHandler := mallh.New(mallRepo, mallSvc, uploadDir)
 	mallHandler.Register(authed)
+	starsHandler.Register(authed)
 
 	// AI 洞察（DNA 报告 / 教练 / 挑战 / 排行解读）
 	if deps.LLM != nil {
@@ -153,6 +159,7 @@ func Build(deps Deps) *gin.Engine {
 	dingtalk.NewMeetingRoomsHandler(deps.DingClient, deps.DB).RegisterAdmin(admin)
 	scheduleSvc := schedulesvc.New(schedulerepo.New(deps.DB), deps.DingClient).WithLLM(deps.LLM)
 	scheduleh.New(scheduleSvc).RegisterAdmin(admin)
+	starsHandler.RegisterAdmin(admin)
 	// 发布活动 = 建活动 + 建日程（日历/会议室/全员/群推送）一次性编排，供 HR-Agent 日程表单提交
 	publishmod.NewHandler(publishmod.New(actSvc, scheduleSvc, usersSvc)).RegisterAdmin(admin)
 	if deps.AgentHandler != nil {
