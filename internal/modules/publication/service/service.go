@@ -354,6 +354,9 @@ func (s *Service) CultureQA(ctx context.Context, tenantID int64, question string
 
 // PushDingtalk 把已发布刊物的摘要推到指定群机器人（groupID=config.dingtalk.robots[].id）。
 func (s *Service) PushDingtalk(ctx context.Context, tenantID, pubID int64, groupID string) error {
+	if s.Ding == nil {
+		return errors.New("钉钉推送未配置")
+	}
 	pub, err := s.Repo.GetPublication(ctx, tenantID, pubID)
 	if err != nil {
 		return err
