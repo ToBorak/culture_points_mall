@@ -184,3 +184,25 @@ func (s *Service) MyNominations(ctx context.Context, tenantID, userID, seasonID 
 	return submitted, received, err
 }
 
+// AdvanceStatus 推进季次状态（管理员操作）。
+func (s *Service) AdvanceStatus(ctx context.Context, tenantID, seasonID int64, status domain.SeasonStatus) error {
+	return s.Repo.UpdateSeasonStatus(ctx, tenantID, seasonID, status)
+}
+
+// Score 评委对提报打分；季次须处于 judging 阶段。
+func (s *Service) Score(ctx context.Context, tenantID, seasonID, nominationID int64, score float64) error {
+	season, err := s.Repo.GetSeason(ctx, tenantID, seasonID)
+	if err != nil {
+		return err
+	}
+	if season.Status != domain.SeasonJudging {
+		return ErrNotJudging
+	}
+	return s.Repo.UpdateNominationScore(ctx, nominationID, score)
+}
+
+// ListNominations 列出某季次全部提报（评委视角）。
+func (s *Service) ListNominations(ctx context.Context, seasonID int64) ([]domain.Nomination, error) {
+	return s.Repo.ListNominationsBySeason(ctx, seasonID)
+}
+
