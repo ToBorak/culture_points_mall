@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"gorm.io/gorm"
+	gomysql "github.com/go-sql-driver/mysql"
 
 	"github.com/standardsoftware/culture_points_mall/internal/config"
 	"github.com/standardsoftware/culture_points_mall/internal/modules/stars/domain"
@@ -43,6 +43,13 @@ var (
 	ErrNomineeNotFound     = errors.New("被提名人不存在")
 	ErrNotJudging          = errors.New("季次不在评审阶段")
 )
+
+// isDuplicateKey 判断是否为 MySQL 唯一键冲突（1062）。
+// GORM 的 ErrDuplicatedKey 翻译需要 TranslateError:true，项目不开启，故直接判断驱动层错误。
+func isDuplicateKey(err error) bool {
+	var mysqlErr *gomysql.MySQLError
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
+}
 
 // awardable 计算本次是否还能发分：当月已发 = count*per，发后不超 cap 才发。
 func awardable(monthlyCount int64, per, cap int) bool {
@@ -101,7 +108,7 @@ func (s *Service) Nominate(ctx context.Context, cmd NominateCmd) (*domain.Nomina
 		Status:      domain.NominationSubmitted,
 	}
 	if err := s.Repo.CreateNomination(ctx, n); err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+		if isDuplicateKey(err) {
 			return nil, ErrDuplicateNomination
 		}
 		return nil, err
