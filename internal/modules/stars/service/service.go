@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -298,4 +299,56 @@ func (s *Service) SelectWinners(ctx context.Context, tenantID, seasonID int64, p
 		}
 	}
 	return nil
+}
+
+// AI⑤ DraftCase 由关键词/口述生成提名案例草稿（纯文本）。
+func (s *Service) DraftCase(ctx context.Context, dimensionName, hint string) (string, error) {
+	if s.LLM == nil {
+		return "", ErrLLMUnavailable
+	}
+	system := `你是企业文化提名助手，帮员工把零散的描述写成一段得体、具体的提名理由。`
+	user := fmt.Sprintf(`被提名人在「%s」价值观上的表现，员工提供的关键信息：%s
+
+请写一段 80-150 字的提名理由，第三人称、具体、有画面感，直接输出正文不要加标题。`, dimensionName, hint)
+	return llm.MessagesText(ctx, s.LLM, system, user, 600)
+}
+
+// Digest AI⑥ 评委摘要结果。
+type Digest struct {
+	Summary     string    `json:"summary"`
+	Duplicates  []string  `json:"duplicates"`
+	GeneratedAt time.Time `json:"generatedAt"`
+}
+
+// JudgeDigest AI⑥ 给评委：汇总某季全部提名 + 查重提示。
+func (s *Service) JudgeDigest(ctx context.Context, tenantID, seasonID int64) (*Digest, error) {
+	if s.LLM == nil {
+		return nil, ErrLLMUnavailable
+	}
+	noms, err := s.Repo.ListNominationsBySeason(ctx, tenantID, seasonID)
+	if err != nil {
+		return nil, err
+	}
+	var b strings.Builder
+	for _, n := range noms {
+		fmt.Fprintf(&b, "- 提名#%d 被提名人ID=%d 维度ID=%d 理由：%s\n", n.ID, n.NomineeID, n.DimensionID, n.CaseText)
+	}
+	system := `你是文化星标评审助理，帮评委快速把握全部提名：提炼整体亮点、并指出疑似重复/雷同的提名供人工复核。`
+	user := fmt.Sprintf(`本季提名清单：
+%s
+严格输出 JSON：
+{
+  "summary": "150 字内总体评审参考，覆盖亮点与分布",
+  "duplicates": ["疑似重复的描述，如『提名#3 与 #7 疑似同一事迹』，没有则空数组"]
+}`, b.String())
+	raw, err := llm.MessagesJSON(ctx, s.LLM, system, user, 1200)
+	if err != nil {
+		return nil, err
+	}
+	var d Digest
+	if err := json.Unmarshal([]byte(raw), &d); err != nil {
+		return nil, fmt.Errorf("parse digest: %w (raw: %s)", err, raw)
+	}
+	d.GeneratedAt = time.Now()
+	return &d, nil
 }

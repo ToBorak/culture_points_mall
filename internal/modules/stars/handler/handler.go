@@ -20,6 +20,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/api/v1/stars/seasons/current", h.currentSeason)
 	rg.POST("/api/v1/stars/nominations", h.nominate)
 	rg.GET("/api/v1/stars/nominations/mine", h.myNominations)
+	rg.POST("/api/v1/stars/nominations/ai-draft", h.aiDraft)
 }
 
 func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
@@ -28,6 +29,7 @@ func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 	rg.GET("/admin/stars/seasons/:id/nominations", h.listNominations)
 	rg.POST("/admin/stars/nominations/:id/score", h.score)
 	rg.POST("/admin/stars/seasons/:id/select", h.selectWinners)
+	rg.POST("/admin/stars/seasons/:id/ai-digest", h.aiDigest)
 }
 
 func (h *Handler) currentSeason(c *gin.Context) {
@@ -185,4 +187,40 @@ func (h *Handler) selectWinners(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (h *Handler) aiDraft(c *gin.Context) {
+	var req struct {
+		DimensionName string `json:"dimensionName" binding:"required"`
+		Hint          string `json:"hint" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	text, err := h.Svc.DraftCase(c.Request.Context(), req.DimensionName, req.Hint)
+	if err != nil {
+		if errors.Is(err, starssvc.ErrLLMUnavailable) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"draft": text})
+}
+
+func (h *Handler) aiDigest(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	seasonID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	d, err := h.Svc.JudgeDigest(c.Request.Context(), tid, seasonID)
+	if err != nil {
+		if errors.Is(err, starssvc.ErrLLMUnavailable) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, d)
 }
