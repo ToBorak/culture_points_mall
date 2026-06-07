@@ -190,6 +190,11 @@ func (s *Service) CreateSeason(ctx context.Context, sn *domain.Season) error {
 	return s.Repo.CreateSeason(ctx, sn)
 }
 
+// ListSeasons 列出租户下全部季次（管理员视角，不过滤 status）。
+func (s *Service) ListSeasons(ctx context.Context, tenantID int64) ([]domain.Season, error) {
+	return s.Repo.ListSeasons(ctx, tenantID)
+}
+
 // CurrentSeasonWithQuota 查当前活跃季次并附带调用人本月提报剩余可得积分。
 func (s *Service) CurrentSeasonWithQuota(ctx context.Context, tenantID, userID int64) (*SeasonQuota, error) {
 	season, err := s.Repo.GetCurrentSeason(ctx, tenantID)

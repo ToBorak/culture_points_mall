@@ -60,6 +60,11 @@ func (s *Service) CreateIssue(ctx context.Context, cmd CreateIssueCmd) (*domain.
 	return p, nil
 }
 
+// ListAllForAdmin 列出租户下全部刊物（含草稿），供管理员查看。
+func (s *Service) ListAllForAdmin(ctx context.Context, tenantID int64) ([]domain.Publication, error) {
+	return s.Repo.ListAllForAdmin(ctx, tenantID)
+}
+
 // ConfigureSections 整体替换该期刊的栏目集合（仅 draft 状态可改）。
 // sections 入参：PublicationID 自动设为 pubID，ID 清零（由 DB 自增）。
 func (s *Service) ConfigureSections(ctx context.Context, tenantID, pubID int64, sections []domain.Section) error {

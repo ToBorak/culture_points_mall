@@ -35,6 +35,12 @@ func (r *GormRepo) ListPublished(ctx context.Context, tenantID int64) ([]domain.
 	return rows, err
 }
 
+func (r *GormRepo) ListAllForAdmin(ctx context.Context, tenantID int64) ([]domain.Publication, error) {
+	var rows []domain.Publication
+	err := r.DB.WithContext(ctx).Where("tenant_id = ?", tenantID).Order("id DESC").Find(&rows).Error
+	return rows, err
+}
+
 func (r *GormRepo) GetCurrentPublished(ctx context.Context, tenantID int64) (*domain.Publication, error) {
 	var p domain.Publication
 	err := r.DB.WithContext(ctx).

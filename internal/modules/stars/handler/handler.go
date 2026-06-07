@@ -24,12 +24,23 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
+	rg.GET("/admin/stars/seasons", h.listSeasons)
 	rg.POST("/admin/stars/seasons", h.createSeason)
 	rg.PUT("/admin/stars/seasons/:id/status", h.advanceStatus)
 	rg.GET("/admin/stars/seasons/:id/nominations", h.listNominations)
 	rg.POST("/admin/stars/nominations/:id/score", h.score)
 	rg.POST("/admin/stars/seasons/:id/select", h.selectWinners)
 	rg.POST("/admin/stars/seasons/:id/ai-digest", h.aiDigest)
+}
+
+func (h *Handler) listSeasons(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	rows, err := h.Svc.ListSeasons(c.Request.Context(), tid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": rows})
 }
 
 func (h *Handler) currentSeason(c *gin.Context) {

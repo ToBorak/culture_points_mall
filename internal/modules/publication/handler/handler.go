@@ -21,6 +21,7 @@ func New(s *pubsvc.Service) *Handler { return &Handler{Svc: s} }
 
 // RegisterAdmin 挂载 admin 端路由（需 admin 角色鉴权，由路由组在外层保证）。
 func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
+	rg.GET("/admin/publications", h.adminList)
 	rg.POST("/admin/publications", h.create)
 	rg.PUT("/admin/publications/:id/sections", h.configureSections)
 	rg.POST("/admin/publications/:id/aggregate", h.aggregate)
@@ -42,6 +43,17 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 }
 
 // ─── Admin handlers ────────────────────────────────────────────────────────────
+
+// adminList 列出租户下全部刊物（含草稿），供管理员使用。
+func (h *Handler) adminList(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	rows, err := h.Svc.ListAllForAdmin(c.Request.Context(), tid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": rows})
+}
 
 func (h *Handler) create(c *gin.Context) {
 	tid := cpmctx.TenantID(c.Request.Context())

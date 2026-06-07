@@ -10,6 +10,7 @@ type Repository interface {
 	CreatePublication(ctx context.Context, p *Publication) error
 	GetPublication(ctx context.Context, tenantID, id int64) (*Publication, error)
 	ListPublished(ctx context.Context, tenantID int64) ([]Publication, error)
+	ListAllForAdmin(ctx context.Context, tenantID int64) ([]Publication, error)
 	GetCurrentPublished(ctx context.Context, tenantID int64) (*Publication, error)
 	UpdatePublicationStatus(ctx context.Context, tenantID, id int64, status PublicationStatus, publishedAt *time.Time) error
 
