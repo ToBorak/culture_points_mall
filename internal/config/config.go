@@ -76,11 +76,11 @@ type StorageCfg struct {
 
 // StarsCfg 文化星标提报评选积分规则。零值由 stars.New 兜底为默认。
 type StarsCfg struct {
-	NominatePoints      int `mapstructure:"nominate_points"`      // 提报每次 +2
-	NominatedPoints     int `mapstructure:"nominated_points"`     // 被提名每次 +4
-	WinnerPoints        int `mapstructure:"winner_points"`        // 评选上 +8
-	NominateMonthlyCap  int `mapstructure:"nominate_monthly_cap"` // 提报积分月上限 6
-	NominatedMonthlyCap int `mapstructure:"nominated_monthly_cap"`// 被提名积分月上限 16
+	NominatePoints      int `mapstructure:"nominate_points"`       // 提报每次 +2
+	NominatedPoints     int `mapstructure:"nominated_points"`      // 被提名每次 +4
+	WinnerPoints        int `mapstructure:"winner_points"`         // 评选上 +8
+	NominateMonthlyCap  int `mapstructure:"nominate_monthly_cap"`  // 提报积分月上限 6
+	NominatedMonthlyCap int `mapstructure:"nominated_monthly_cap"` // 被提名积分月上限 16
 }
 
 func Load(paths ...string) (*Config, error) {

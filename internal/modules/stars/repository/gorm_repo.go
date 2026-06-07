@@ -63,9 +63,9 @@ func (r *GormRepo) GetNomination(ctx context.Context, id int64) (*domain.Nominat
 	return &n, nil
 }
 
-func (r *GormRepo) ListNominationsBySeason(ctx context.Context, seasonID int64) ([]domain.Nomination, error) {
+func (r *GormRepo) ListNominationsBySeason(ctx context.Context, tenantID, seasonID int64) ([]domain.Nomination, error) {
 	var rows []domain.Nomination
-	err := r.DB.WithContext(ctx).Where("season_id = ?", seasonID).Order("id DESC").Find(&rows).Error
+	err := r.DB.WithContext(ctx).Where("tenant_id = ? AND season_id = ?", tenantID, seasonID).Order("id DESC").Find(&rows).Error
 	return rows, err
 }
 
@@ -101,14 +101,14 @@ func (r *GormRepo) CountNominationsByNomineeSince(ctx context.Context, tenantID,
 	return cnt, err
 }
 
-func (r *GormRepo) UpdateNominationScore(ctx context.Context, id int64, score float64) error {
+func (r *GormRepo) UpdateNominationScore(ctx context.Context, tenantID, id int64, score float64) error {
 	return r.DB.WithContext(ctx).Model(&domain.Nomination{}).
-		Where("id = ?", id).Update("score", score).Error
+		Where("id = ? AND tenant_id = ?", id, tenantID).Update("score", score).Error
 }
 
-func (r *GormRepo) UpdateNominationStatus(ctx context.Context, id int64, status domain.NominationStatus) error {
+func (r *GormRepo) UpdateNominationStatus(ctx context.Context, tenantID, id int64, status domain.NominationStatus) error {
 	return r.DB.WithContext(ctx).Model(&domain.Nomination{}).
-		Where("id = ?", id).Update("status", status).Error
+		Where("id = ? AND tenant_id = ?", id, tenantID).Update("status", status).Error
 }
 
 func (r *GormRepo) CreateWinnerIfAbsent(ctx context.Context, w *domain.Winner) (bool, error) {

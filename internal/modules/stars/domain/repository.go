@@ -14,13 +14,13 @@ type Repository interface {
 
 	CreateNomination(ctx context.Context, n *Nomination) error
 	GetNomination(ctx context.Context, id int64) (*Nomination, error)
-	ListNominationsBySeason(ctx context.Context, seasonID int64) ([]Nomination, error)
+	ListNominationsBySeason(ctx context.Context, tenantID, seasonID int64) ([]Nomination, error)
 	ListNominationsByNominator(ctx context.Context, tenantID, userID, seasonID int64) ([]Nomination, error)
 	ListNominationsByNominee(ctx context.Context, tenantID, userID, seasonID int64) ([]Nomination, error)
 	CountNominationsByNominatorSince(ctx context.Context, tenantID, nominatorID int64, since time.Time) (int64, error)
 	CountNominationsByNomineeSince(ctx context.Context, tenantID, nomineeID int64, since time.Time) (int64, error)
-	UpdateNominationScore(ctx context.Context, id int64, score float64) error
-	UpdateNominationStatus(ctx context.Context, id int64, status NominationStatus) error
+	UpdateNominationScore(ctx context.Context, tenantID, id int64, score float64) error
+	UpdateNominationStatus(ctx context.Context, tenantID, id int64, status NominationStatus) error
 
 	// CreateWinnerIfAbsent 命中 uk_season_user_dim 时不报错，返回是否新建。
 	CreateWinnerIfAbsent(ctx context.Context, w *Winner) (created bool, err error)

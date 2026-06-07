@@ -9,8 +9,8 @@ import (
 	gomysql "github.com/go-sql-driver/mysql"
 
 	"github.com/standardsoftware/culture_points_mall/internal/config"
-	"github.com/standardsoftware/culture_points_mall/internal/modules/stars/domain"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
+	"github.com/standardsoftware/culture_points_mall/internal/modules/stars/domain"
 )
 
 type Service struct {
@@ -199,12 +199,12 @@ func (s *Service) Score(ctx context.Context, tenantID, seasonID, nominationID in
 	if season.Status != domain.SeasonJudging {
 		return ErrNotJudging
 	}
-	return s.Repo.UpdateNominationScore(ctx, nominationID, score)
+	return s.Repo.UpdateNominationScore(ctx, tenantID, nominationID, score)
 }
 
 // ListNominations 列出某季次全部提报（评委视角）。
-func (s *Service) ListNominations(ctx context.Context, seasonID int64) ([]domain.Nomination, error) {
-	return s.Repo.ListNominationsBySeason(ctx, seasonID)
+func (s *Service) ListNominations(ctx context.Context, tenantID, seasonID int64) ([]domain.Nomination, error) {
+	return s.Repo.ListNominationsBySeason(ctx, tenantID, seasonID)
 }
 
 // Pick 是定榜时的一条当选记录。
@@ -247,7 +247,7 @@ func (s *Service) SelectWinners(ctx context.Context, tenantID, seasonID int64, p
 		}
 		// 2) 幂等置提名 status=selected
 		if p.SourceNominationID != nil {
-			if err := s.Repo.UpdateNominationStatus(ctx, *p.SourceNominationID, domain.NominationSelected); err != nil {
+			if err := s.Repo.UpdateNominationStatus(ctx, tenantID, *p.SourceNominationID, domain.NominationSelected); err != nil {
 				return err
 			}
 		}
@@ -267,4 +267,3 @@ func (s *Service) SelectWinners(ctx context.Context, tenantID, seasonID int64, p
 	}
 	return nil
 }
-

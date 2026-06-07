@@ -130,8 +130,9 @@ func (h *Handler) advanceStatus(c *gin.Context) {
 }
 
 func (h *Handler) listNominations(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
-	rows, err := h.Svc.ListNominations(c.Request.Context(), id)
+	rows, err := h.Svc.ListNominations(c.Request.Context(), tid, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
