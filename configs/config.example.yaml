@@ -42,3 +42,9 @@ seed:
   demo_data: false          # true 仅用于演示：生成 50 个假用户(员工01-50)+演示积分；生产保持 false
 storage:
   upload_dir: "./uploads"   # 商品/奖品图片本地存储目录；通过 /api/uploads/<file> 访问
+stars:
+  nominate_points: 2
+  nominated_points: 4
+  winner_points: 8
+  nominate_monthly_cap: 6
+  nominated_monthly_cap: 16
