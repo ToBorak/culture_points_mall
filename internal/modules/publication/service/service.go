@@ -195,7 +195,10 @@ func (s *Service) GetDetail(ctx context.Context, tenantID, pubID int64) (*Publis
 	return s.assemble(ctx, tenantID, pub)
 }
 
-// assemble 组装可见栏目（按 sort_order）：快照类塞 Snapshot(json.RawMessage)，成稿类塞 Articles。
+// assemble 组装可见栏目（按 sort_order ASC）。
+// - SnapshotBacked 栏目（star/values/honors/lottery/activity/leaderboard）：从 publication_snapshots 取 json.RawMessage 塞入 Snapshot。
+// - 成稿类栏目（editorial/innovation/custom 等）：从 publication_articles 按 section_id 聚合塞入 Articles。
+// - 两者可同时存在（快照 + 文章），由调用方决定前端展示顺序。
 func (s *Service) assemble(ctx context.Context, tenantID int64, pub *domain.Publication) (*PublishedView, error) {
 	sections, err := s.Repo.ListSections(ctx, pub.ID)
 	if err != nil {
