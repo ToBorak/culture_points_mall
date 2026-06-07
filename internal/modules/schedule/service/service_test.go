@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/standardsoftware/culture_points_mall/internal/modules/schedule/domain"
+	usersdomain "github.com/standardsoftware/culture_points_mall/internal/modules/users/domain"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
 )
@@ -47,6 +48,7 @@ func (f *fakeDing) CreateCalendarEvent(_ context.Context, r dingtalk.CalendarReq
 	}
 	return "evt-99", nil
 }
+func (f *fakeDing) DeleteCalendarEvent(context.Context, string, string) error                  { return nil }
 func (f *fakeDing) ListCalendarResponses(context.Context, string) ([]dingtalk.Response, error) { return nil, nil }
 func (f *fakeDing) QueryMeetingRooms(context.Context, string) ([]dingtalk.MeetingRoom, error) {
 	return nil, nil
@@ -112,4 +114,42 @@ func TestService_Create_PartialOnBotError(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, domain.StatusPartial, out.Status)
 	require.Contains(t, out.ResultNote, "culture")
+}
+
+type fakeUserResolver struct{ byID map[int64]*usersdomain.User }
+
+func (f *fakeUserResolver) GetByID(_ context.Context, _ int64, id int64) (*usersdomain.User, error) {
+	return f.byID[id], nil
+}
+
+// 建钉钉日程时，组织者应是操作者本人(CreatedBy)解析出的钉钉 userid，而非参与人。
+func TestService_Create_OrganizerIsOperator(t *testing.T) {
+	repo := &memRepo{}
+	ding := &fakeDing{}
+	users := &fakeUserResolver{byID: map[int64]*usersdomain.User{
+		9: {ID: 9, DingUserID: "boss-ding"},
+	}}
+	s := New(repo, ding).WithUsers(users)
+	now := time.Now()
+	_, err := s.Create(context.Background(), CreateCmd{
+		TenantID: 1, Title: "周会", StartAt: now, EndAt: now.Add(time.Hour),
+		AttendeeUserIDs: []string{"u1", "u2"}, PushCalendar: true, CreatedBy: 9,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "boss-ding", ding.calReq.OrganizerUserID)
+}
+
+// 群卡片「查看详情」按钮应指向活动详情页(经 Card.Extra["url"] 传给 BotBroadcast)。
+func TestService_Create_GroupCardLinksToActivity(t *testing.T) {
+	repo := &memRepo{}
+	ding := &fakeDing{}
+	s := New(repo, ding)
+	now := time.Now()
+	_, err := s.Create(context.Background(), CreateCmd{
+		TenantID: 1, Title: "团建", StartAt: now, EndAt: now.Add(time.Hour),
+		GroupIDs: []string{"culture"}, PushGroup: true,
+		DetailURL: "https://h5.example.com/activities/7",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://h5.example.com/activities/7", ding.bcCard.Extra["url"])
 }

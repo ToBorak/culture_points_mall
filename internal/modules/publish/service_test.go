@@ -106,3 +106,17 @@ func TestPublish_ActivityErrorShortCircuits(t *testing.T) {
 	require.False(t, res.Stages[0].OK)
 	require.Empty(t, sched.cmd.Title) // schedule 未被调用
 }
+
+// 发活动并推群时，群卡片应带上指向该活动详情页的链接(h5BaseURL + /activities/<活动id>)。
+func TestPublish_GroupCardLinksToActivity(t *testing.T) {
+	act := &fakeAct{}
+	sched := &fakeSched{}
+	s := New(act, sched, &fakeUsers{}).WithH5BaseURL("https://h5.example.com/") // 尾斜杠应被规整
+	now := time.Now()
+	s.Publish(context.Background(), Cmd{
+		TenantID: 1, Title: "团建", DimensionCode: "team",
+		StartAt: now, EndAt: now.Add(time.Hour),
+		AttendeeUserIDs: []string{"x1"}, PushGroup: true, GroupIDs: []string{"culture"},
+	})
+	require.Equal(t, "https://h5.example.com/activities/7", sched.cmd.DetailURL) // fakeAct 返回 ID=7
+}

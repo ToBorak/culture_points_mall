@@ -113,7 +113,7 @@ func (s *Seeder) seedBadges() error {
 	if err := s.DB.Exec(`DELETE FROM badges WHERE tenant_id = ?`, s.DefaultTenantID).Error; err != nil {
 		return err
 	}
-	// 10 枚「成长里程碑」勋章：起点 / 赚取线 / 消费线。
+	// 12 枚「成长里程碑」勋章：起点 / 签到线 / 赚取线 / 消费线。
 	// 均为全局勋章（dimension_id = 0）。icon_url 存 emblem 代码，前端按代码渲染拟物奖牌。
 	badges := []struct {
 		name   string // 四字成语称号
@@ -123,6 +123,8 @@ func (s *Seeder) seedBadges() error {
 		emblem string
 	}{
 		{"初来乍到", "完成第一次活动签到", "common", `{"type":"first_signin"}`, "sprout"},
+		{"渐入佳境", "完成 5 次活动签到", "rare", `{"type":"signin_count","threshold":5}`, "calendar_check"},
+		{"持之以恒", "完成 10 次活动签到", "epic", `{"type":"signin_count","threshold":10}`, "flame"},
 		{"旗开得胜", "赚到第一笔积分", "common", `{"type":"earned_total","threshold":1}`, "flag"},
 		{"积少成多", "累计赚取满 5 分", "common", `{"type":"earned_total","threshold":5}`, "coin_stack"},
 		{"聚沙成塔", "累计赚取满 10 分", "rare", `{"type":"earned_total","threshold":10}`, "pagoda"},

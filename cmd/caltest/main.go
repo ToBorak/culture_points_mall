@@ -33,8 +33,8 @@ func main() {
 	end := start.Add(time.Hour)
 
 	eventID, err := ding.CreateCalendarEvent(context.Background(), dingtalk.CalendarRequest{
-		Title:    "文化积分 · 团队日程测试",
-		Detail:   "这是通过文化积分系统创建的第一个真实钉钉日程。",
+		Title:    "文化官 · 团队日程测试",
+		Detail:   "这是通过文化官系统创建的第一个真实钉钉日程。",
 		StartAt:  start,
 		EndAt:    end,
 		Location: "线上会议",

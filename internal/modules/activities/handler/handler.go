@@ -34,9 +34,6 @@ type createReq struct {
 	StartAt       *time.Time `json:"startAt"`
 	EndAt         *time.Time `json:"endAt"`
 	Capacity      *int       `json:"capacity"`
-	LocationLat   *float64   `json:"locationLat"`
-	LocationLng   *float64   `json:"locationLng"`
-	RadiusM       *int       `json:"radiusM"`
 	PointsReward  int        `json:"pointsReward"`
 }
 
@@ -53,7 +50,6 @@ func (h *Handler) create(c *gin.Context) {
 	a, err := h.Svc.Create(c.Request.Context(), service.CreateCmd{
 		TenantID: tid, DimensionCode: req.DimensionCode, Title: req.Title,
 		StartAt: req.StartAt, EndAt: req.EndAt, Capacity: req.Capacity,
-		LocationLat: req.LocationLat, LocationLng: req.LocationLng, RadiusM: req.RadiusM,
 		PointsReward: req.PointsReward,
 	})
 	if err != nil {

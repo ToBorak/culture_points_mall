@@ -4,6 +4,7 @@ package publish
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,10 +30,25 @@ type Service struct {
 	Activities ActivityCreator
 	Schedule   SchedulePublisher
 	Users      AttendeeLister
+	H5BaseURL  string // 文化官 H5 对外访问地址；非空时群卡片「查看详情」跳到 H5BaseURL/activities/<活动id>
 }
 
 func New(a ActivityCreator, s SchedulePublisher, u AttendeeLister) *Service {
 	return &Service{Activities: a, Schedule: s, Users: u}
+}
+
+// WithH5BaseURL 注入 H5 对外地址，用于把群卡片「查看详情」按钮指向对应活动详情页。
+func (s *Service) WithH5BaseURL(u string) *Service {
+	s.H5BaseURL = u
+	return s
+}
+
+// activityURL 拼活动详情页链接；未配 H5BaseURL 或无活动 id 时返回空串(群卡片按钮回退默认)。
+func (s *Service) activityURL(activityID int64) string {
+	if s.H5BaseURL == "" || activityID <= 0 {
+		return ""
+	}
+	return strings.TrimRight(s.H5BaseURL, "/") + "/activities/" + strconv.FormatInt(activityID, 10)
 }
 
 type Cmd struct {
@@ -134,6 +150,7 @@ func (s *Service) Publish(ctx context.Context, cmd Cmd) Result {
 		PushCalendar:    true,
 		PushGroup:       cmd.PushGroup,
 		CreatedBy:       cmd.CreatedBy,
+		DetailURL:       s.activityURL(act.ID),
 	})
 	if err != nil {
 		res.Stages = append(res.Stages, Stage{Name: "create_schedule", OK: false, Error: err.Error()})

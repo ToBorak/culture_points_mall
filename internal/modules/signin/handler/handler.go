@@ -23,12 +23,8 @@ func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 }
 
 type checkReq struct {
-	ActivityID int64    `json:"activityId" binding:"required"`
-	Code       string   `json:"code" binding:"required"`
-	GPSLat     *float64 `json:"gpsLat"`
-	GPSLng     *float64 `json:"gpsLng"`
-	QuizExpect string   `json:"quizExpect"`
-	QuizAnswer string   `json:"quizAnswer"`
+	ActivityID int64  `json:"activityId" binding:"required"`
+	Code       string `json:"code" binding:"required"`
 }
 
 func (h *Handler) check(c *gin.Context) {
@@ -40,9 +36,7 @@ func (h *Handler) check(c *gin.Context) {
 		return
 	}
 	res, err := h.Svc.Check(c.Request.Context(), service.CheckCmd{
-		TenantID: tid, UserID: uid, ActivityID: req.ActivityID,
-		Code: req.Code, GPSLat: req.GPSLat, GPSLng: req.GPSLng,
-		QuizExpect: req.QuizExpect, QuizAnswer: req.QuizAnswer,
+		TenantID: tid, UserID: uid, ActivityID: req.ActivityID, Code: req.Code,
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrAlreadySignedIn) {
@@ -56,7 +50,7 @@ func (h *Handler) check(c *gin.Context) {
 		c.JSON(400, gin.H{"ok": false, "reason": res.Reason})
 		return
 	}
-	c.JSON(200, gin.H{"ok": true, "transactionId": res.TransactionID, "newBadges": res.NewBadges, "points": res.Points})
+	c.JSON(200, gin.H{"ok": true, "transactionId": res.TransactionID, "points": res.Points})
 }
 
 func (h *Handler) currentCode(c *gin.Context) {

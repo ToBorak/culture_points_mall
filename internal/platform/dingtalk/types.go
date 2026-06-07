@@ -16,8 +16,10 @@ type CalendarRequest struct {
 	StartAt  time.Time
 	EndAt    time.Time
 	UserIDs  []string
-	Location string
-	Detail   string
+	// OrganizerUserID 为日程组织者(操作者本人)的钉钉 userid；为空时回退到 cfg.CalendarOrganizerUnionID，再回退到参与人第一个。
+	OrganizerUserID string
+	Location        string
+	Detail          string
 	// RoomIDs 为钉钉智能会议室的 roomId 列表。非空时，建完日程会把这些会议室加到事件上，
 	// 钉钉会自动按 roomId 回填会议室名称显示在日程里（无需我们传名称）。
 	RoomIDs []string

@@ -7,17 +7,33 @@ import (
 
 	"github.com/standardsoftware/culture_points_mall/internal/modules/activities/domain"
 	"github.com/standardsoftware/culture_points_mall/internal/modules/activities/repository"
+	usersdomain "github.com/standardsoftware/culture_points_mall/internal/modules/users/domain"
 	valuessvc "github.com/standardsoftware/culture_points_mall/internal/modules/values/service"
+	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 )
+
+// UserResolver 按 id 取成员，用于拿到报名用户的钉钉 userid 作为日程组织者/参与人。
+// *users/service.Service 满足它。
+type UserResolver interface {
+	GetByID(ctx context.Context, tenantID, id int64) (*usersdomain.User, error)
+}
 
 type Service struct {
 	Repo   *repository.GormRepo
 	Values *valuessvc.Service
+	Ding   dingtalk.Client // 可空：报名时自动写入 / 取消时移除钉钉日历
+	Users  UserResolver    // 可空：解析报名用户的钉钉 userid
 }
 
 func New(r *repository.GormRepo, v *valuessvc.Service) *Service {
 	return &Service{Repo: r, Values: v}
 }
+
+// WithDing 注入钉钉客户端，启用「报名自动加入日程 / 取消移除日程」。
+func (s *Service) WithDing(c dingtalk.Client) *Service { s.Ding = c; return s }
+
+// WithUsers 注入成员查询，用于解析报名用户的钉钉 userid。
+func (s *Service) WithUsers(u UserResolver) *Service { s.Users = u; return s }
 
 type CreateCmd struct {
 	TenantID      int64
@@ -26,9 +42,6 @@ type CreateCmd struct {
 	StartAt       *time.Time
 	EndAt         *time.Time
 	Capacity      *int
-	LocationLat   *float64
-	LocationLng   *float64
-	RadiusM       *int
 	PointsReward  int
 }
 
@@ -61,9 +74,6 @@ func (s *Service) Create(ctx context.Context, cmd CreateCmd) (*domain.Activity, 
 		Capacity:     cmd.Capacity,
 		StartAt:      cmd.StartAt,
 		EndAt:        cmd.EndAt,
-		LocationLat:  cmd.LocationLat,
-		LocationLng:  cmd.LocationLng,
-		RadiusM:      cmd.RadiusM,
 		PointsReward: cmd.PointsReward,
 	}
 	if err := s.Repo.Create(ctx, a); err != nil {
@@ -84,9 +94,10 @@ func (s *Service) GetByID(ctx context.Context, tenantID, id int64) (*domain.Acti
 
 // MineView 当前用户与该活动的关系。
 type MineView struct {
-	Enrolled  bool   `json:"enrolled"`
-	Status    string `json:"status"` // "" | enrolled | checked_in | absent
-	CheckedIn bool   `json:"checkedIn"`
+	Enrolled   bool   `json:"enrolled"`
+	Status     string `json:"status"` // "" | enrolled | checked_in | absent
+	CheckedIn  bool   `json:"checkedIn"`
+	InCalendar bool   `json:"inCalendar"` // 报名是否已自动加入该用户的钉钉日历
 }
 
 // ActivityView 嵌入原始活动结构（保持 ID/Title/Status… 等 PascalCase 字段不变，
@@ -117,7 +128,7 @@ func (s *Service) toView(a domain.Activity, idx map[int64]dimInfo, enrolledCount
 	di := idx[a.DimensionID]
 	var mine MineView
 	if en != nil {
-		mine = MineView{Enrolled: true, Status: string(en.Status), CheckedIn: en.Status == domain.EnrollCheckedIn}
+		mine = MineView{Enrolled: true, Status: string(en.Status), CheckedIn: en.Status == domain.EnrollCheckedIn, InCalendar: en.CalendarEventID != ""}
 	}
 	return ActivityView{
 		Activity:      a,
@@ -202,6 +213,8 @@ func (s *Service) Enroll(ctx context.Context, tenantID, userID, activityID int64
 		if err := s.Repo.Enroll(ctx, activityID, userID); err != nil {
 			return nil, err
 		}
+		// 报名成功后把活动写进该用户的钉钉日历（尽力而为，失败不影响报名结果）。
+		s.addToCalendar(ctx, tenantID, userID, act)
 	}
 	return s.Detail(ctx, tenantID, userID, activityID)
 }
@@ -211,10 +224,55 @@ func (s *Service) Unenroll(ctx context.Context, tenantID, userID, activityID int
 	if _, err := s.Repo.GetByID(ctx, tenantID, activityID); err != nil {
 		return nil, err
 	}
+	// 取消报名前，先尽力移除报名时自动加入的钉钉日程（失败不影响取消）。
+	if en, err := s.Repo.GetEnrollment(ctx, activityID, userID); err == nil && en != nil && en.CalendarEventID != "" {
+		s.removeFromCalendar(ctx, tenantID, userID, en.CalendarEventID)
+	}
 	if err := s.Repo.Unenroll(ctx, activityID, userID); err != nil {
 		return nil, err
 	}
 	return s.Detail(ctx, tenantID, userID, activityID)
+}
+
+// addToCalendar 报名成功后把活动写进该用户自己的钉钉日历：组织者与参与人都设为用户本人，
+// 事件即落在用户主日历上，取消报名时可用同一 userid 删除。尽力而为，任何前置缺失或失败都静默忽略。
+func (s *Service) addToCalendar(ctx context.Context, tenantID, userID int64, act *domain.Activity) {
+	if s.Ding == nil || s.Users == nil || act.StartAt == nil {
+		return
+	}
+	u, err := s.Users.GetByID(ctx, tenantID, userID)
+	if err != nil || u == nil || u.DingUserID == "" {
+		return
+	}
+	start := *act.StartAt
+	end := start.Add(time.Hour)
+	if act.EndAt != nil {
+		end = *act.EndAt
+	}
+	eventID, err := s.Ding.CreateCalendarEvent(ctx, dingtalk.CalendarRequest{
+		Title:           act.Title,
+		Detail:          "文化官活动 · 记得到现场扫码签到领积分",
+		StartAt:         start,
+		EndAt:           end,
+		OrganizerUserID: u.DingUserID,
+		UserIDs:         []string{u.DingUserID},
+	})
+	if err != nil || eventID == "" {
+		return
+	}
+	_ = s.Repo.SetCalendarEventID(ctx, act.ID, userID, eventID)
+}
+
+// removeFromCalendar 取消报名时删除报名自动加入的钉钉日程。尽力而为，失败静默忽略。
+func (s *Service) removeFromCalendar(ctx context.Context, tenantID, userID int64, eventID string) {
+	if s.Ding == nil || s.Users == nil {
+		return
+	}
+	u, err := s.Users.GetByID(ctx, tenantID, userID)
+	if err != nil || u == nil || u.DingUserID == "" {
+		return
+	}
+	_ = s.Ding.DeleteCalendarEvent(ctx, u.DingUserID, eventID)
 }
 
 // MarkCheckedIn 签到通过后由 signin 模块调用，将报名状态置为 checked_in（无则补建）。

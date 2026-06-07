@@ -14,9 +14,11 @@ func New(s *service.Service) *Handler { return &Handler{Svc: s} }
 func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/api/v1/me/badges", h.list)
 	rg.POST("/api/v1/me/badges/check", h.check)
+	rg.POST("/api/v1/me/badges/celebrated", h.markCelebrated)
 }
 
-// check 结算并返回本次「新解锁」的勋章，供前端全局庆祝弹窗。无新勋章时 items 为空数组。
+// check 结算授予并返回所有「尚未庆祝」的已得勋章，供前端全局庆祝弹窗逐枚展示。
+// 返回的勋章需前端展示后调 /me/badges/celebrated 回执落定，否则下次仍会返回（零丢失）。
 func (h *Handler) check(c *gin.Context) {
 	tid := cpmctx.TenantID(c.Request.Context())
 	uid := cpmctx.UserID(c.Request.Context())
@@ -35,6 +37,23 @@ func (h *Handler) check(c *gin.Context) {
 	c.JSON(200, gin.H{"items": out})
 }
 
+// markCelebrated 前端在勋章弹窗展示后回执，落定「已庆祝」，之后不再返回这些勋章。
+func (h *Handler) markCelebrated(c *gin.Context) {
+	uid := cpmctx.UserID(c.Request.Context())
+	var req struct {
+		BadgeIDs []int64 `json:"badgeIds"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.Svc.MarkCelebrated(c.Request.Context(), uid, req.BadgeIDs); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true})
+}
+
 type badgeItem struct {
 	ID              int64  `json:"id"`
 	DimensionID     int64  `json:"dimensionId"`
@@ -45,6 +64,7 @@ type badgeItem struct {
 	Earned          bool   `json:"earned"`
 	ProgressCurrent int    `json:"progressCurrent"`
 	ProgressTarget  int    `json:"progressTarget"`
+	ProgressUnit    string `json:"progressUnit"`
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -61,6 +81,7 @@ func (h *Handler) list(c *gin.Context) {
 			ID: v.Badge.ID, DimensionID: v.Badge.DimensionID, Name: v.Badge.Name,
 			Description: v.Badge.Description, Rarity: string(v.Badge.Rarity), IconURL: v.Badge.IconURL,
 			Earned: v.Earned, ProgressCurrent: v.ProgressCurrent, ProgressTarget: v.ProgressTarget,
+			ProgressUnit: v.ProgressUnit,
 		})
 	}
 	c.JSON(200, gin.H{"items": out})

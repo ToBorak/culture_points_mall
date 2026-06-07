@@ -1,10 +1,10 @@
-// 文化积分商城方案 v4 · PPTX 生成脚本
+// 文化官方案 v4 · PPTX 生成脚本
 // 12 张幻灯片 · 深色金调 · 严格字号层次
 const pptxgen = require("pptxgenjs");
 
 const pres = new pptxgen();
 pres.layout = "LAYOUT_WIDE"; // 13.3 x 7.5
-pres.title = "文化积分商城方案 v4";
+pres.title = "文化官方案 v4";
 pres.author = "Culture Points Mall";
 
 // ============ 色板 ============
@@ -162,7 +162,7 @@ function circle(slide, x, y, size, color, text = "", textColor = C.bg) {
   });
 
   // 主标题
-  s.addText("文化积分商城", {
+  s.addText("文化官", {
     x: 0.9, y: 1.7, w: 11, h: 1.4,
     fontSize: T.coverTitle, fontFace: FONT, color: C.white,
     bold: true, margin: 0,
@@ -283,7 +283,7 @@ function circle(slide, x, y, size, color, text = "", textColor = C.bg) {
   bg(s);
 
   eyebrow(s, "CHAPTER 01 · 背景与痛点");
-  pageTitle(s, "Excel 时代的文化积分");
+  pageTitle(s, "Excel 时代的文化官");
   pageSub(s, "误差不可追溯 · 流程不透明 · 规则不闭环 · 沉淀难量化");
 
   const pains = [
@@ -1127,7 +1127,7 @@ function circle(slide, x, y, size, color, text = "", textColor = C.bg) {
 }
 
 // 写出文件
-pres.writeFile({ fileName: "../文化积分商城方案-v4.pptx" }).then(fn => {
+pres.writeFile({ fileName: "../文化官方案-v4.pptx" }).then(fn => {
   console.log("OK: " + fn);
 }).catch(e => {
   console.error("ERR:", e);

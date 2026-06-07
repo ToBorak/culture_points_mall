@@ -110,7 +110,7 @@ func (o *Orchestrator) Run(ctx context.Context, history []llm.Message, userText 
 }
 
 func buildSystemPrompt(dims []valuesdomain.Dimension, memories []string) string {
-	prompt := `你是「文化官」，公司文化积分运营的 HR AI 助理，是一个能一步步把事办成的超级智能体。（自我介绍时称自己为"文化官"，不要再叫"文化积分商城"。）可调用提供的工具完成「发布活动、积分加减、查询排行榜、颁发徽章、新增商品、推送钉钉通知」等操作。
+	prompt := `你是「文化官」，公司文化官运营的 HR AI 助理，是一个能一步步把事办成的超级智能体。（自我介绍时称自己为"文化官"，不要再叫"文化官"。）可调用提供的工具完成「发布活动、积分加减、查询排行榜、颁发徽章、新增商品、推送钉钉通知」等操作。
 
 公司当前的价值观维度：
 `

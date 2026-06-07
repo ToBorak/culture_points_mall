@@ -10,19 +10,19 @@ import (
 
 	"github.com/standardsoftware/culture_points_mall/internal/auth"
 
+	"github.com/standardsoftware/culture_points_mall/internal/config"
 	insightsh "github.com/standardsoftware/culture_points_mall/internal/modules/insights/handler"
 	insightsservice "github.com/standardsoftware/culture_points_mall/internal/modules/insights/service"
-	"github.com/standardsoftware/culture_points_mall/internal/config"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
 
-	agenthandler "github.com/standardsoftware/culture_points_mall/internal/modules/agent/handler"
-	acth "github.com/standardsoftware/culture_points_mall/internal/modules/activities/handler"
-	actrepo "github.com/standardsoftware/culture_points_mall/internal/modules/activities/repository"
-	actsvc "github.com/standardsoftware/culture_points_mall/internal/modules/activities/service"
 	achvh "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/handler"
 	achvrepo "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/repository"
 	achvsvc "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/service"
+	acth "github.com/standardsoftware/culture_points_mall/internal/modules/activities/handler"
+	actrepo "github.com/standardsoftware/culture_points_mall/internal/modules/activities/repository"
+	actsvc "github.com/standardsoftware/culture_points_mall/internal/modules/activities/service"
+	agenthandler "github.com/standardsoftware/culture_points_mall/internal/modules/agent/handler"
 	lbh "github.com/standardsoftware/culture_points_mall/internal/modules/leaderboard/handler"
 	lbsvc "github.com/standardsoftware/culture_points_mall/internal/modules/leaderboard/service"
 	mallh "github.com/standardsoftware/culture_points_mall/internal/modules/mall/handler"
@@ -32,6 +32,10 @@ import (
 	pointsh "github.com/standardsoftware/culture_points_mall/internal/modules/points/handler"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
+	publishmod "github.com/standardsoftware/culture_points_mall/internal/modules/publish"
+	scheduleh "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/handler"
+	schedulerepo "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/repository"
+	schedulesvc "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/service"
 	signinh "github.com/standardsoftware/culture_points_mall/internal/modules/signin/handler"
 	signinrepo "github.com/standardsoftware/culture_points_mall/internal/modules/signin/repository"
 	signinsvc "github.com/standardsoftware/culture_points_mall/internal/modules/signin/service"
@@ -41,10 +45,6 @@ import (
 	valuesh "github.com/standardsoftware/culture_points_mall/internal/modules/values/handler"
 	valuesrepo "github.com/standardsoftware/culture_points_mall/internal/modules/values/repository"
 	valuessvc "github.com/standardsoftware/culture_points_mall/internal/modules/values/service"
-	schedulerepo "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/repository"
-	schedulesvc "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/service"
-	scheduleh "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/handler"
-	publishmod "github.com/standardsoftware/culture_points_mall/internal/modules/publish"
 )
 
 type Deps struct {
@@ -106,7 +106,7 @@ func Build(deps Deps) *gin.Engine {
 	actSvc := actsvc.New(actRepo, valuesSvc)
 
 	signinRepo := signinrepo.New(deps.DB)
-	signinSvc := signinsvc.New(signinRepo, actSvc, pointsSvc, achvSvc, deps.Cfg.Signin.Secret, deps.Cfg.Signin.WindowSeconds)
+	signinSvc := signinsvc.New(signinRepo, actSvc, pointsSvc, deps.Cfg.Signin.Secret, deps.Cfg.Signin.WindowSeconds)
 
 	// 开放组：无鉴权，仅限公开端点
 	open := r.Group("/")
@@ -122,6 +122,8 @@ func Build(deps Deps) *gin.Engine {
 	actHandler.Register(authed)
 	pointsh.New(pointsSvc, valuesSvc).Register(authed)
 	usersSvc := usersvc.New(usersrepo.New(deps.DB))
+	// 报名自动加入 / 取消移除钉钉日程：给活动服务注入钉钉客户端与成员查询。
+	actSvc.WithDing(deps.DingClient).WithUsers(usersSvc)
 	usersHandler := usersh.New(usersSvc)
 	usersHandler.Register(authed)
 	achvh.New(achvSvc).Register(authed)
@@ -151,10 +153,10 @@ func Build(deps Deps) *gin.Engine {
 	usersHandler.RegisterAdmin(admin)
 	dingtalk.NewRobotsHandler(deps.Cfg.DingTalk.Robots).RegisterAdmin(admin)
 	dingtalk.NewMeetingRoomsHandler(deps.DingClient, deps.DB).RegisterAdmin(admin)
-	scheduleSvc := schedulesvc.New(schedulerepo.New(deps.DB), deps.DingClient).WithLLM(deps.LLM)
+	scheduleSvc := schedulesvc.New(schedulerepo.New(deps.DB), deps.DingClient).WithLLM(deps.LLM).WithUsers(usersSvc)
 	scheduleh.New(scheduleSvc).RegisterAdmin(admin)
 	// 发布活动 = 建活动 + 建日程（日历/会议室/全员/群推送）一次性编排，供 HR-Agent 日程表单提交
-	publishmod.NewHandler(publishmod.New(actSvc, scheduleSvc, usersSvc)).RegisterAdmin(admin)
+	publishmod.NewHandler(publishmod.New(actSvc, scheduleSvc, usersSvc).WithH5BaseURL(deps.Cfg.DingTalk.H5BaseURL)).RegisterAdmin(admin)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(admin)
 	}

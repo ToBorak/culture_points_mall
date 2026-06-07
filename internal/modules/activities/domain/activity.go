@@ -20,9 +20,6 @@ type Activity struct {
 	Capacity     *int       `gorm:"column:capacity"`
 	StartAt      *time.Time `gorm:"column:start_at"`
 	EndAt        *time.Time `gorm:"column:end_at"`
-	LocationLat  *float64   `gorm:"column:location_lat"`
-	LocationLng  *float64   `gorm:"column:location_lng"`
-	RadiusM      *int       `gorm:"column:radius_m"`
 	PointsReward int        `gorm:"column:points_reward"`
 	CreatedAt    time.Time  `gorm:"column:created_at"`
 }

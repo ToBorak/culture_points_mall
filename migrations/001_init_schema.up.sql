@@ -82,9 +82,6 @@ CREATE TABLE activities (
   capacity INT DEFAULT NULL,
   start_at TIMESTAMP NULL,
   end_at TIMESTAMP NULL,
-  location_lat DECIMAL(10,6) DEFAULT NULL,
-  location_lng DECIMAL(10,6) DEFAULT NULL,
-  radius_m INT DEFAULT NULL,
   points_reward INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   KEY idx_tenant_status (tenant_id, status, start_at)
@@ -113,9 +110,6 @@ CREATE TABLE signin_records (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   activity_id BIGINT NOT NULL,
   user_id BIGINT NOT NULL,
-  gps_lat DECIMAL(10,6) DEFAULT NULL,
-  gps_lng DECIMAL(10,6) DEFAULT NULL,
-  quiz_answer VARCHAR(128) DEFAULT '',
   result ENUM('passed','rejected','suspect') NOT NULL,
   reason VARCHAR(255) DEFAULT '',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -137,6 +131,7 @@ CREATE TABLE badges (
 CREATE TABLE user_badges (
   user_id BIGINT NOT NULL,
   badge_id BIGINT NOT NULL,
+  celebrated TINYINT NOT NULL DEFAULT 0,
   earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, badge_id)
 ) ENGINE=InnoDB CHARSET=utf8mb4;

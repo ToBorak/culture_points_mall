@@ -375,12 +375,12 @@ func (s *Service) LeaderboardInsight(ctx context.Context, tenantID, userID int64
 	}
 	var all []row
 	if err := s.DB.Raw(`
-		SELECT u.id AS uid, u.name, COALESCE(SUM(s.total_score), 0) AS total
+		SELECT u.id AS uid, u.name, (SELECT COALESCE(SUM(pt.amount),0) FROM point_transactions pt WHERE pt.user_id = u.id AND pt.amount > 0) AS total
 		FROM users u
 		LEFT JOIN user_dimension_scores s ON s.user_id = u.id AND s.tenant_id = u.tenant_id
 		WHERE u.tenant_id = ?
 		GROUP BY u.id, u.name
-		ORDER BY total DESC
+		ORDER BY total DESC, u.id ASC
 	`, tenantID).Scan(&all).Error; err != nil {
 		return nil, err
 	}

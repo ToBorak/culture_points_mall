@@ -1,4 +1,4 @@
-# 文化积分商城 · 后端
+# 文化官 · 后端
 
 > 双 binary：`cmd/server`（HTTP :18080） + `cmd/mcp`（JSON-RPC over SSE :8090）
 
@@ -93,4 +93,4 @@ make test-int      # 集成测试（dockertest 自动起 MySQL + miniredis）
 - `internal/migrate/` — 迁移与 seed
 - `internal/router/` — 路由组装
 
-详见 [`docs/superpowers/specs/2026-05-22-文化积分商城-动漫风钉钉应用-design.md`](docs/superpowers/specs/2026-05-22-文化积分商城-动漫风钉钉应用-design.md)
+详见 [`docs/superpowers/specs/2026-05-22-文化官-动漫风钉钉应用-design.md`](docs/superpowers/specs/2026-05-22-文化官-动漫风钉钉应用-design.md)

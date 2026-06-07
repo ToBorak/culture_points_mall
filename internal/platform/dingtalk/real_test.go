@@ -136,6 +136,46 @@ func TestRealClient_CreateCalendarEvent_WithRooms(t *testing.T) {
 	require.Contains(t, roomBody, `"roomId":"r2"`)
 }
 
+// 组织者应是操作者本人：即使配了 CalendarOrganizerUnionID，传入 OrganizerUserID 时也优先用操作者解析出的 unionId。
+func TestRealClient_CreateCalendarEvent_OrganizerIsOperator(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1.0/oauth2/accessToken":
+			_, _ = w.Write([]byte(`{"accessToken":"AT","expireIn":7200}`))
+		case r.URL.Path == "/topapi/v2/user/get":
+			b, _ := io.ReadAll(r.Body)
+			if strings.Contains(string(b), "boss") {
+				_, _ = w.Write([]byte(`{"errcode":0,"result":{"unionid":"boss-union"}}`))
+			} else {
+				_, _ = w.Write([]byte(`{"errcode":0,"result":{"unionid":"att-union"}}`))
+			}
+		case strings.HasSuffix(r.URL.Path, "/events"):
+			require.Equal(t, "/v1.0/calendar/users/boss-union/calendars/primary/events", r.URL.Path)
+			_, _ = w.Write([]byte(`{"id":"evt-1"}`))
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	defer mr.Close()
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
+	// 故意配上一个不同的组织者 unionId，验证操作者优先级高于配置。
+	c := NewReal(config.DingTalkCfg{AppKey: "ak", AppSecret: "as", CalendarOrganizerUnionID: "cfg-union"}, rdb)
+	c.api.oapiBase = srv.URL
+	c.api.apiBase = srv.URL
+
+	eventID, err := c.CreateCalendarEvent(context.Background(), CalendarRequest{
+		Title: "周会", StartAt: time.Now(), EndAt: time.Now().Add(time.Hour),
+		UserIDs: []string{"att1"}, OrganizerUserID: "boss",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "evt-1", eventID)
+}
+
 func TestRealClient_UnimplementedReturnsErr(t *testing.T) {
 	c := NewReal(config.DingTalkCfg{}, nil)
 	ctx := context.Background()

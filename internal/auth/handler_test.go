@@ -27,6 +27,7 @@ func (f *rejectingDingClient) GetUserByCode(context.Context, string) (dingtalk.U
 func (f *rejectingDingClient) CreateCalendarEvent(context.Context, dingtalk.CalendarRequest) (string, error) {
 	return "", nil
 }
+func (f *rejectingDingClient) DeleteCalendarEvent(context.Context, string, string) error { return nil }
 func (f *rejectingDingClient) ListCalendarResponses(context.Context, string) ([]dingtalk.Response, error) {
 	return nil, nil
 }
