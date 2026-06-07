@@ -6,7 +6,7 @@
 
 ## 背景与目标
 
-文化积分管理应用整体框架已完成，钉钉对接此前以 **Mock 实现**占位：`internal/platform/dingtalk` 已定义 `Client` 接口与 `MockClient`，登录路由、前端登录壳、后台“钉钉推送”监控页均已就绪，配置里 `DingTalkCfg.Mode` 字段已留好却未启用。
+文化官管理应用整体框架已完成，钉钉对接此前以 **Mock 实现**占位：`internal/platform/dingtalk` 已定义 `Client` 接口与 `MockClient`，登录路由、前端登录壳、后台“钉钉推送”监控页均已就绪，配置里 `DingTalkCfg.Mode` 字段已留好却未启用。
 
 本次目标是把空壳填实，交付两项真实能力：
 
@@ -94,7 +94,7 @@ dingtalk:
   calendar_organizer_unionid: ""    # 可选，默认用发布人 unionId
   robots:                           # groupID -> webhook + secret
     - id: "culture"
-      name: "文化积分群"
+      name: "文化官群"
       webhook: "https://oapi.dingtalk.com/robot/send?access_token=xxx"
       secret: "${DINGTALK_ROBOT_CULTURE_SECRET}"
 ```

@@ -38,6 +38,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 
 func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 	rg.POST("/api/v1/admin/mall/items", h.create)
+	rg.PUT("/api/v1/admin/mall/items/:id", h.updateItem)
 	rg.DELETE("/api/v1/admin/mall/items/:id", h.deleteItem)
 	rg.POST("/api/v1/admin/mall/upload", h.upload)
 	rg.GET("/api/v1/admin/mall/blindbox/:id/config", h.getBoxConfig)
@@ -207,6 +208,46 @@ func (h *Handler) deleteItem(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"ok": true})
+}
+
+type updateItemReq struct {
+	Name     *string `json:"name"`
+	Cost     *int    `json:"cost"`
+	Stock    *int    `json:"stock"`
+	ImageURL *string `json:"image_url"`
+}
+
+// updateItem 局部更新商品基础信息（名称/积分/图片省略则不改）；stock 按提交值整体设置：
+// 传数字=该库存，留空/null=不限量（编辑表单总是全量回填 stock，故不会被误清空）。
+func (h *Handler) updateItem(c *gin.Context) {
+	tid := cpmctx.TenantID(c.Request.Context())
+	if tid == 0 {
+		tid = 1
+	}
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if id <= 0 {
+		c.JSON(400, gin.H{"error": "invalid id"})
+		return
+	}
+	var req updateItemReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	it, _, err := h.Svc.UpdateItem(c.Request.Context(), service.UpdateItemCmd{
+		TenantID: tid,
+		ItemID:   id,
+		Name:     req.Name,
+		Cost:     req.Cost,
+		Stock:    req.Stock,
+		StockSet: true,
+		ImageURL: req.ImageURL,
+	})
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, it)
 }
 
 // getBoxConfig 返回某盲盒的配置：盲盒信息 + 无奖品权重 + 已配奖品 + 全部可选好物。

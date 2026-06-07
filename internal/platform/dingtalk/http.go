@@ -77,6 +77,12 @@ func (c *caller) apiGet(ctx context.Context, path, token string, query url.Value
 	return nil
 }
 
+// apiDelete 发 DELETE 到 api.dingtalk.com 新接口（token 走 header，无请求体），用于删除日程等。
+func (c *caller) apiDelete(ctx context.Context, path, token string) error {
+	_, err := c.doDelete(ctx, c.apiBase+path, token)
+	return err
+}
+
 // do 发 POST 并返回响应体。headerToken 非空时设置钉钉新接口 header；任何非 2xx 响应都返回错误。
 func (c *caller) do(ctx context.Context, fullURL, headerToken string, in any) ([]byte, error) {
 	body, err := json.Marshal(in)
@@ -109,6 +115,30 @@ func (c *caller) do(ctx context.Context, fullURL, headerToken string, in any) ([
 // doGet 发 GET 并返回响应体。语义与 do 一致，仅方法不同、无请求体。
 func (c *caller) doGet(ctx context.Context, fullURL, headerToken string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	if headerToken != "" {
+		req.Header.Set("x-acs-dingtalk-access-token", headerToken)
+	}
+	resp, err := c.hc.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("dingtalk %s read body: %w", redactToken(fullURL), err)
+	}
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("dingtalk %s status=%d body=%s", redactToken(fullURL), resp.StatusCode, string(raw))
+	}
+	return raw, nil
+}
+
+// doDelete 发 DELETE 并返回响应体。语义与 doGet 一致，仅方法不同、无请求体。
+func (c *caller) doDelete(ctx context.Context, fullURL, headerToken string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fullURL, nil)
 	if err != nil {
 		return nil, err
 	}

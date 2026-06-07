@@ -35,6 +35,9 @@ func (d *fakeDing) GetUserByCode(_ context.Context, _ string) (dingtalk.User, er
 func (d *fakeDing) CreateCalendarEvent(_ context.Context, _ dingtalk.CalendarRequest) (string, error) {
 	return "", nil
 }
+func (d *fakeDing) DeleteCalendarEvent(_ context.Context, _, _ string) error {
+	return nil
+}
 func (d *fakeDing) ListCalendarResponses(_ context.Context, _ string) ([]dingtalk.Response, error) {
 	return nil, nil
 }

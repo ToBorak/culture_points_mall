@@ -59,7 +59,7 @@ func (s *Service) List(ctx context.Context, p ListParams) ([]Entry, error) {
 			LEFT JOIN user_dimension_scores s ON s.user_id = u.id
 			WHERE d.tenant_id = ?
 			GROUP BY d.id, d.name
-			ORDER BY score DESC
+			ORDER BY earned DESC
 			LIMIT ?
 		`, p.TenantID, p.Limit).Scan(&rows).Error
 		if err != nil {
@@ -75,7 +75,7 @@ func (s *Service) List(ctx context.Context, p ListParams) ([]Entry, error) {
 			LEFT JOIN departments d ON d.id = u.dept_id AND d.tenant_id = u.tenant_id
 			WHERE u.tenant_id = ?
 			GROUP BY u.id, u.name, u.avatar_url, d.name
-			ORDER BY score DESC, u.id ASC
+			ORDER BY earned DESC, u.id ASC
 			LIMIT ?
 		`, p.TenantID, p.Limit).Scan(&rows).Error
 		if err != nil {

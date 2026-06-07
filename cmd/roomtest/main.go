@@ -61,7 +61,7 @@ func main() {
 
 	pick := rooms[0]
 	eventID, err := ding.CreateCalendarEvent(ctx, dingtalk.CalendarRequest{
-		Title:    "文化积分 · 会议室预定测试",
+		Title:    "文化官 · 会议室预定测试",
 		Detail:   "验证通过 API 预定智能会议室，并让日程自动附上会议室名称。",
 		StartAt:  start,
 		EndAt:    end,

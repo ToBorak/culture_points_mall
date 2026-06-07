@@ -1248,7 +1248,7 @@ func buildSystemPrompt(dims []struct {
 	Enabled   bool
 }) string {
 	// 注：实际签名应使用 values/domain.Dimension。此处简化伪结构示意。
-	prompt := `你是文化积分商城的 HR 运营 AI 助理。可调用提供的工具完成「发布活动、加分、查询排行榜、颁发徽章、推送钉钉通知」等操作。
+	prompt := `你是文化官的 HR 运营 AI 助理。可调用提供的工具完成「发布活动、加分、查询排行榜、颁发徽章、推送钉钉通知」等操作。
 
 公司当前的价值观维度：
 `
@@ -2287,7 +2287,7 @@ git commit -m "test:MCP 协议端到端集成测试"
 - [ ] **步骤 1：文档**
 
 ```markdown
-# 接入文化积分商城 MCP Server
+# 接入文化官 MCP Server
 
 启动后端 MCP：
 

@@ -64,6 +64,14 @@ func (r *GormRepo) Enroll(ctx context.Context, activityID, userID int64) error {
 		Create(e).Error
 }
 
+// SetCalendarEventID 记录报名时自动创建的钉钉日程事件ID（取消报名时据此删除）。
+func (r *GormRepo) SetCalendarEventID(ctx context.Context, activityID, userID int64, eventID string) error {
+	return r.DB.WithContext(ctx).
+		Model(&domain.Enrollment{}).
+		Where("activity_id = ? AND user_id = ?", activityID, userID).
+		Update("calendar_event_id", eventID).Error
+}
+
 // Unenroll 取消报名：直接删行，允许之后重新报名。
 func (r *GormRepo) Unenroll(ctx context.Context, activityID, userID int64) error {
 	return r.DB.WithContext(ctx).

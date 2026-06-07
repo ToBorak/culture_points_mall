@@ -16,7 +16,9 @@ type Enrollment struct {
 	ActivityID int64        `gorm:"column:activity_id"`
 	UserID     int64        `gorm:"column:user_id"`
 	Status     EnrollStatus `gorm:"column:status"`
-	CreatedAt  time.Time    `gorm:"column:created_at"`
+	// CalendarEventID 报名时自动创建的钉钉日程事件ID；取消报名时据此删除。空=未入日历。
+	CalendarEventID string    `gorm:"column:calendar_event_id"`
+	CreatedAt       time.Time `gorm:"column:created_at"`
 }
 
 func (Enrollment) TableName() string { return "activity_enrollments" }

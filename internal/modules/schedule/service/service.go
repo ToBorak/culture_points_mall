@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/standardsoftware/culture_points_mall/internal/modules/schedule/domain"
+	usersdomain "github.com/standardsoftware/culture_points_mall/internal/modules/users/domain"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
 )
@@ -16,10 +17,17 @@ type Repo interface {
 	ListByTenant(ctx context.Context, tenantID int64, limit int) ([]domain.Schedule, error)
 }
 
+// UserResolver 按 id 取成员，用于把钉钉日程的组织者设为操作者本人。
+// *users/service.Service 与 *users/repository.GormRepo 都满足它。
+type UserResolver interface {
+	GetByID(ctx context.Context, tenantID, id int64) (*usersdomain.User, error)
+}
+
 type Service struct {
-	Repo Repo
-	Ding dingtalk.Client
-	LLM  llm.Client // 可空：用于群推送卡片的 AI 润色文案
+	Repo  Repo
+	Ding  dingtalk.Client
+	LLM   llm.Client   // 可空：用于群推送卡片的 AI 润色文案
+	Users UserResolver // 可空：把钉钉日程组织者设为操作者本人(CreatedBy)
 }
 
 func New(repo Repo, ding dingtalk.Client) *Service {
@@ -29,6 +37,12 @@ func New(repo Repo, ding dingtalk.Client) *Service {
 // WithLLM 注入 LLM 客户端（群机器人卡片会用它生成一句润色描述）。
 func (s *Service) WithLLM(c llm.Client) *Service {
 	s.LLM = c
+	return s
+}
+
+// WithUsers 注入成员查询，用于把钉钉日程的组织者设为操作者本人。
+func (s *Service) WithUsers(u UserResolver) *Service {
+	s.Users = u
 	return s
 }
 
@@ -45,6 +59,7 @@ type CreateCmd struct {
 	PushCalendar    bool
 	PushGroup       bool
 	CreatedBy       int64
+	DetailURL       string // 群卡片「查看详情」按钮跳转地址(活动详情页)；为空时按钮回退到默认
 }
 
 func (s *Service) Create(ctx context.Context, cmd CreateCmd) (*domain.Schedule, error) {
@@ -59,7 +74,9 @@ func (s *Service) Create(ctx context.Context, cmd CreateCmd) (*domain.Schedule, 
 	if cmd.PushCalendar && len(cmd.AttendeeUserIDs) > 0 {
 		eventID, err := s.Ding.CreateCalendarEvent(ctx, dingtalk.CalendarRequest{
 			Title: cmd.Title, StartAt: cmd.StartAt, EndAt: cmd.EndAt,
-			UserIDs: cmd.AttendeeUserIDs, Location: cmd.Location, Detail: cmd.Detail,
+			UserIDs:         cmd.AttendeeUserIDs,
+			OrganizerUserID: s.organizerUserID(ctx, cmd.TenantID, cmd.CreatedBy),
+			Location:        cmd.Location, Detail: cmd.Detail,
 			RoomIDs: cmd.RoomIDs,
 		})
 		// 事件可能已建成但加会议室失败：此时 eventID 非空且 err 非空，两者都记录。
@@ -80,6 +97,9 @@ func (s *Service) Create(ctx context.Context, cmd CreateCmd) (*domain.Schedule, 
 
 	if cmd.PushGroup {
 		card := dingtalk.Card{Title: cmd.Title, Detail: s.groupCardDetail(ctx, cmd)}
+		if cmd.DetailURL != "" {
+			card.Extra = map[string]any{"url": cmd.DetailURL}
+		}
 		for _, gid := range cmd.GroupIDs {
 			if err := s.Ding.BotBroadcast(ctx, gid, card); err != nil {
 				notes = append(notes, "群"+gid+"失败:"+err.Error())
@@ -95,6 +115,19 @@ func (s *Service) Create(ctx context.Context, cmd CreateCmd) (*domain.Schedule, 
 		return nil, err
 	}
 	return sch, nil
+}
+
+// organizerUserID 把操作者(CreatedBy=users.id)解析成其钉钉 userid，用作日程组织者；
+// 未注入 Users、无操作者或查不到时返回空串，由钉钉层回退到配置/参与人第一个。
+func (s *Service) organizerUserID(ctx context.Context, tenantID, createdBy int64) string {
+	if s.Users == nil || createdBy <= 0 {
+		return ""
+	}
+	u, err := s.Users.GetByID(ctx, tenantID, createdBy)
+	if err != nil || u == nil {
+		return ""
+	}
+	return u.DingUserID
 }
 
 func (s *Service) List(ctx context.Context, tenantID int64) ([]domain.Schedule, error) {

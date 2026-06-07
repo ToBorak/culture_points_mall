@@ -47,6 +47,7 @@ type DingTalkCfg struct {
 	AdminUserIDs             []string   `mapstructure:"admin_user_ids"`
 	CalendarOrganizerUnionID string     `mapstructure:"calendar_organizer_unionid"`
 	Robots                   []RobotCfg `mapstructure:"robots"`
+	H5BaseURL                string     `mapstructure:"h5_base_url"`
 }
 type LLMCfg struct {
 	Provider string

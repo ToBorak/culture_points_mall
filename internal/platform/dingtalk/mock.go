@@ -65,6 +65,10 @@ func (m *MockClient) CreateCalendarEvent(ctx context.Context, req CalendarReques
 	return eventID, m.record(ctx, "create_calendar", strings.Join(req.UserIDs, ","), req)
 }
 
+func (m *MockClient) DeleteCalendarEvent(ctx context.Context, organizerUserID, eventID string) error {
+	return m.record(ctx, "delete_calendar", organizerUserID, map[string]any{"eventId": eventID})
+}
+
 func (m *MockClient) ListCalendarResponses(_ context.Context, _ string) ([]Response, error) {
 	return nil, nil
 }

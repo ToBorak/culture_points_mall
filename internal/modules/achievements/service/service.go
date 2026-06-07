@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"sort"
 
 	"github.com/standardsoftware/culture_points_mall/internal/modules/achievements/domain"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
@@ -19,6 +20,9 @@ type repoIface interface {
 	ListBadges(ctx context.Context, tenantID int64) ([]domain.Badge, error)
 	ListUserBadgeIDs(ctx context.Context, userID int64) ([]int64, error)
 	AwardBadge(ctx context.Context, userID, badgeID int64) error
+	CountPassedSignins(ctx context.Context, userID int64) (int, error)
+	ListPendingBadges(ctx context.Context, userID int64) ([]domain.Badge, error)
+	MarkCelebrated(ctx context.Context, userID int64, badgeIDs []int64) error
 }
 
 type Wrap struct {
@@ -63,6 +67,10 @@ func (s *Service) CheckTriggers(ctx context.Context, tenantID, userID, dimension
 	if err != nil {
 		return nil, err
 	}
+	signinCount, err := s.Repo.Inner.CountPassedSignins(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 
 	var newly []int64
 	for _, b := range badges {
@@ -80,6 +88,8 @@ func (s *Service) CheckTriggers(ctx context.Context, tenantID, userID, dimension
 			unlocked = scoreByDim[b.DimensionID] >= rule.Threshold
 		case "first_signin":
 			unlocked = hasActivity
+		case "signin_count":
+			unlocked = signinCount >= rule.Threshold
 		case "earned_total":
 			unlocked = earned >= rule.Threshold
 		case "spent_total":
@@ -95,31 +105,19 @@ func (s *Service) CheckTriggers(ctx context.Context, tenantID, userID, dimension
 	return newly, nil
 }
 
-// CheckNew 结算并返回本次「新解锁」的勋章完整信息，供 H5 全局庆祝弹窗使用。
-// 复用 CheckTriggers（它只在首次满足条件时返回该勋章，已拥有的不会再返回）。
+// CheckNew 供 H5 全局庆祝弹窗调用：先结算授予（新达成的勋章写入 user_badges 且 celebrated=0），
+// 再返回所有「尚未庆祝」的已得勋章。授予与庆祝解耦——返回的勋章只有在前端展示后回执
+// （MarkCelebrated）才会落定，否则下次仍会返回，确保竞态/刷新/崩溃下零丢失。
 func (s *Service) CheckNew(ctx context.Context, tenantID, userID int64) ([]domain.Badge, error) {
-	newlyIDs, err := s.CheckTriggers(ctx, tenantID, userID, 0)
-	if err != nil {
+	if _, err := s.CheckTriggers(ctx, tenantID, userID, 0); err != nil {
 		return nil, err
 	}
-	if len(newlyIDs) == 0 {
-		return nil, nil
-	}
-	all, err := s.Repo.Inner.ListBadges(ctx, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	byID := make(map[int64]domain.Badge, len(all))
-	for _, b := range all {
-		byID[b.ID] = b
-	}
-	out := make([]domain.Badge, 0, len(newlyIDs))
-	for _, id := range newlyIDs {
-		if b, ok := byID[id]; ok {
-			out = append(out, b)
-		}
-	}
-	return out, nil
+	return s.Repo.Inner.ListPendingBadges(ctx, userID)
+}
+
+// MarkCelebrated 由前端在勋章弹窗展示后回执调用，落定这些勋章「已庆祝」，之后不再返回。
+func (s *Service) MarkCelebrated(ctx context.Context, userID int64, badgeIDs []int64) error {
+	return s.Repo.Inner.MarkCelebrated(ctx, userID, badgeIDs)
 }
 
 func (s *Service) ListMyBadges(ctx context.Context, tenantID, userID int64) ([]domain.Badge, map[int64]bool, error) {
@@ -146,8 +144,9 @@ func (s *Service) AwardBadge(ctx context.Context, userID, badgeID int64) error {
 type BadgeView struct {
 	Badge           domain.Badge
 	Earned          bool
-	ProgressCurrent int // 当前累计值（仅 earned_total / spent_total 有意义）
-	ProgressTarget  int // 解锁阈值（0 表示无进度条，如首次类）
+	ProgressCurrent int    // 当前累计值（earned_total / spent_total / signin_count 有意义）
+	ProgressTarget  int    // 解锁阈值（0 表示无进度条，如首次类）
+	ProgressUnit    string // 进度单位：积分类为"分"，签到类为"次"
 }
 
 // ListMyBadgeViews 返回带进度的勋章列表。结算/授予由全局 BadgeCelebration（POST /me/badges/check）统一负责，
@@ -165,9 +164,14 @@ func (s *Service) ListMyBadgeViews(ctx context.Context, tenantID, userID int64) 
 	if err != nil {
 		return nil, err
 	}
+	signinCount, err := s.Repo.Inner.CountPassedSignins(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	views := make([]BadgeView, 0, len(all))
 	for _, b := range all {
 		cur, tgt := 0, 0
+		unit := "分"
 		var rule domain.Rule
 		if json.Unmarshal(b.RuleJSON, &rule) == nil {
 			switch rule.Type {
@@ -175,12 +179,41 @@ func (s *Service) ListMyBadgeViews(ctx context.Context, tenantID, userID int64) 
 				cur, tgt = earned, rule.Threshold
 			case "spent_total":
 				cur, tgt = spent, rule.Threshold
+			case "signin_count":
+				cur, tgt, unit = signinCount, rule.Threshold, "次"
 			}
 		}
 		if tgt > 0 && cur > tgt {
 			cur = tgt
 		}
-		views = append(views, BadgeView{Badge: b, Earned: owned[b.ID], ProgressCurrent: cur, ProgressTarget: tgt})
+		views = append(views, BadgeView{Badge: b, Earned: owned[b.ID], ProgressCurrent: cur, ProgressTarget: tgt, ProgressUnit: unit})
 	}
+	// 统一展示顺序：首次签到 → 签到次数 → 累计赚取 → 累计消费 → 其它；同类按阈值升序。
+	sort.SliceStable(views, func(i, j int) bool {
+		oi, ti := badgeOrder(views[i].Badge.RuleJSON)
+		oj, tj := badgeOrder(views[j].Badge.RuleJSON)
+		if oi != oj {
+			return oi < oj
+		}
+		return ti < tj
+	})
 	return views, nil
+}
+
+// badgeOrder 给勋章一个稳定的展示排序键（类别优先级, 阈值）。
+func badgeOrder(raw json.RawMessage) (int, int) {
+	var r domain.Rule
+	_ = json.Unmarshal(raw, &r)
+	order := map[string]int{
+		"first_signin": 0,
+		"signin_count": 1,
+		"earned_total": 2,
+		"spent_total":  3,
+		"accumulated":  4,
+	}
+	o, ok := order[r.Type]
+	if !ok {
+		o = 9
+	}
+	return o, r.Threshold
 }

@@ -110,7 +110,7 @@ func (c *RealClient) unionIDByUserID(ctx context.Context, token, userid string) 
 }
 
 // CreateCalendarEvent 在组织者的主日历上创建日程，参与人会在各自钉钉日历里看到。
-// 组织者默认取 cfg.CalendarOrganizerUnionID，否则用参与人列表第一个。
+// 组织者优先取 req.OrganizerUserID(操作者本人)，否则取 cfg.CalendarOrganizerUnionID，再否则用参与人列表第一个。
 func (c *RealClient) CreateCalendarEvent(ctx context.Context, req CalendarRequest) (string, error) {
 	tok, err := c.tokens.corpToken(ctx)
 	if err != nil {
@@ -118,7 +118,18 @@ func (c *RealClient) CreateCalendarEvent(ctx context.Context, req CalendarReques
 	}
 
 	attendees := make([]map[string]string, 0, len(req.UserIDs))
-	organizer := c.cfg.CalendarOrganizerUnionID
+	// 组织者优先级：操作者本人 > 配置 > 参与人第一个。
+	organizer := ""
+	if req.OrganizerUserID != "" {
+		union, err := c.unionIDByUserID(ctx, tok, req.OrganizerUserID)
+		if err != nil {
+			return "", fmt.Errorf("resolve organizer unionId for %s: %w", req.OrganizerUserID, err)
+		}
+		organizer = union
+	}
+	if organizer == "" {
+		organizer = c.cfg.CalendarOrganizerUnionID
+	}
 	for _, uid := range req.UserIDs {
 		union, err := c.unionIDByUserID(ctx, tok, uid)
 		if err != nil {
@@ -161,6 +172,25 @@ func (c *RealClient) CreateCalendarEvent(ctx context.Context, req CalendarReques
 		}
 	}
 	return out.ID, nil
+}
+
+// DeleteCalendarEvent 删除组织者主日历上的日程（取消报名时移除自动加入的日程）。
+// organizerUserID 为日程组织者的钉钉 userid（创建时即报名用户本人），内部换成 unionId 再删。
+// DELETE /v1.0/calendar/users/{organizerUnionId}/calendars/primary/events/{eventId}
+func (c *RealClient) DeleteCalendarEvent(ctx context.Context, organizerUserID, eventID string) error {
+	if organizerUserID == "" || eventID == "" {
+		return errors.New("dingtalk: organizerUserID and eventID required to delete calendar event")
+	}
+	tok, err := c.tokens.corpToken(ctx)
+	if err != nil {
+		return err
+	}
+	union, err := c.unionIDByUserID(ctx, tok, organizerUserID)
+	if err != nil {
+		return fmt.Errorf("resolve organizer unionId for %s: %w", organizerUserID, err)
+	}
+	path := "/v1.0/calendar/users/" + union + "/calendars/primary/events/" + eventID
+	return c.api.apiDelete(ctx, path, tok)
 }
 
 // addMeetingRooms 把会议室加到已建好的日程事件上。

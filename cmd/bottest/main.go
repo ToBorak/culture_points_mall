@@ -25,8 +25,8 @@ func main() {
 	ding := dingtalk.NewReal(cfg.DingTalk, nil)
 
 	err = ding.BotBroadcast(context.Background(), groupID, dingtalk.Card{
-		Title:  "文化积分 · 日程提醒",
-		Detail: "**团队周会**\n\n- 时间：明天 15:00 ~ 16:00\n- 地点：线上会议\n\n> 这是文化积分系统通过群机器人推送的第一条消息 🎉",
+		Title:  "文化官 · 日程提醒",
+		Detail: "**团队周会**\n\n- 时间：明天 15:00 ~ 16:00\n- 地点：线上会议\n\n> 这是文化官系统通过群机器人推送的第一条消息 🎉",
 	})
 	if err != nil {
 		log.Fatalf("BotBroadcast failed: %v", err)

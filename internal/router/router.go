@@ -32,6 +32,9 @@ import (
 	pointsh "github.com/standardsoftware/culture_points_mall/internal/modules/points/handler"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
+	pubh "github.com/standardsoftware/culture_points_mall/internal/modules/publication/handler"
+	pubrepo "github.com/standardsoftware/culture_points_mall/internal/modules/publication/repository"
+	pubsvc "github.com/standardsoftware/culture_points_mall/internal/modules/publication/service"
 	publishmod "github.com/standardsoftware/culture_points_mall/internal/modules/publish"
 	scheduleh "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/handler"
 	schedulerepo "github.com/standardsoftware/culture_points_mall/internal/modules/schedule/repository"
@@ -48,10 +51,6 @@ import (
 	valuesh "github.com/standardsoftware/culture_points_mall/internal/modules/values/handler"
 	valuesrepo "github.com/standardsoftware/culture_points_mall/internal/modules/values/repository"
 	valuessvc "github.com/standardsoftware/culture_points_mall/internal/modules/values/service"
-
-	pubh "github.com/standardsoftware/culture_points_mall/internal/modules/publication/handler"
-	pubrepo "github.com/standardsoftware/culture_points_mall/internal/modules/publication/repository"
-	pubsvc "github.com/standardsoftware/culture_points_mall/internal/modules/publication/service"
 )
 
 type Deps struct {
@@ -117,7 +116,7 @@ func Build(deps Deps) *gin.Engine {
 	actSvc := actsvc.New(actRepo, valuesSvc)
 
 	signinRepo := signinrepo.New(deps.DB)
-	signinSvc := signinsvc.New(signinRepo, actSvc, pointsSvc, achvSvc, deps.Cfg.Signin.Secret, deps.Cfg.Signin.WindowSeconds)
+	signinSvc := signinsvc.New(signinRepo, actSvc, pointsSvc, deps.Cfg.Signin.Secret, deps.Cfg.Signin.WindowSeconds)
 
 	// 开放组：无鉴权，仅限公开端点
 	open := r.Group("/")
@@ -133,6 +132,8 @@ func Build(deps Deps) *gin.Engine {
 	actHandler.Register(authed)
 	pointsh.New(pointsSvc, valuesSvc).Register(authed)
 	usersSvc := usersvc.New(usersrepo.New(deps.DB))
+	// 报名自动加入 / 取消移除钉钉日程：给活动服务注入钉钉客户端与成员查询。
+	actSvc.WithDing(deps.DingClient).WithUsers(usersSvc)
 	usersHandler := usersh.New(usersSvc)
 	usersHandler.Register(authed)
 	achvh.New(achvSvc).Register(authed)
@@ -164,12 +165,12 @@ func Build(deps Deps) *gin.Engine {
 	usersHandler.RegisterAdmin(admin)
 	dingtalk.NewRobotsHandler(deps.Cfg.DingTalk.Robots).RegisterAdmin(admin)
 	dingtalk.NewMeetingRoomsHandler(deps.DingClient, deps.DB).RegisterAdmin(admin)
-	scheduleSvc := schedulesvc.New(schedulerepo.New(deps.DB), deps.DingClient).WithLLM(deps.LLM)
+	scheduleSvc := schedulesvc.New(schedulerepo.New(deps.DB), deps.DingClient).WithLLM(deps.LLM).WithUsers(usersSvc)
 	scheduleh.New(scheduleSvc).RegisterAdmin(admin)
 	starsHandler.RegisterAdmin(admin)
 	pubHandler.RegisterAdmin(admin)
 	// 发布活动 = 建活动 + 建日程（日历/会议室/全员/群推送）一次性编排，供 HR-Agent 日程表单提交
-	publishmod.NewHandler(publishmod.New(actSvc, scheduleSvc, usersSvc)).RegisterAdmin(admin)
+	publishmod.NewHandler(publishmod.New(actSvc, scheduleSvc, usersSvc).WithH5BaseURL(deps.Cfg.DingTalk.H5BaseURL)).RegisterAdmin(admin)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(admin)
 	}

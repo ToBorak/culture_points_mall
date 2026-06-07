@@ -1,4 +1,4 @@
-# 接入文化积分商城 MCP Server
+# 接入文化官 MCP Server
 
 启动后端 MCP：
 

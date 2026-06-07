@@ -19,8 +19,6 @@ import (
 	activitiesdomain "github.com/standardsoftware/culture_points_mall/internal/modules/activities/domain"
 	activitiesrepo "github.com/standardsoftware/culture_points_mall/internal/modules/activities/repository"
 	activitiessvc "github.com/standardsoftware/culture_points_mall/internal/modules/activities/service"
-	achvrepo "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/repository"
-	achvsvc "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/service"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
 	signinrepo "github.com/standardsoftware/culture_points_mall/internal/modules/signin/repository"
@@ -82,15 +80,14 @@ func TestSignin_FullFlow_RealMySQL(t *testing.T) {
 	act, err := as.Create(ctx, activitiessvc.CreateCmd{TenantID: 1, DimensionCode: "team_collab", Title: "签到集成测试", PointsReward: 15})
 	require.NoError(t, err)
 
-	// 3) 准备 points / achievements
+	// 3) 准备 points
 	pr := pointsrepo.New(testDB)
 	ps := pointssvc.New(testDB, pr, vs, nil)
-	achvS := achvsvc.New(&achvsvc.Wrap{Inner: achvrepo.New(testDB)}, ps, vs)
 
 	// 4) signin service
 	sr := signinrepo.New(testDB)
 	secret := "int-test-secret"
-	s := New(sr, as, ps, achvS, secret, 60)
+	s := New(sr, as, ps, secret, 60)
 
 	// 5) 生成当前 HMAC code，直接走 service.Check
 	code := s.CurrentCode(act.ID)

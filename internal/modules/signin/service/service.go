@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	achvsvc "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/service"
 	activitiessvc "github.com/standardsoftware/culture_points_mall/internal/modules/activities/service"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
 	"github.com/standardsoftware/culture_points_mall/internal/modules/signin/domain"
@@ -13,19 +12,18 @@ import (
 )
 
 type Service struct {
-	Repo         *repository.GormRepo
-	Activities   *activitiessvc.Service
-	Points       *pointssvc.Service
-	Achievements *achvsvc.Service
-	HMACSecret   string
-	WindowSecs   int
+	Repo       *repository.GormRepo
+	Activities *activitiessvc.Service
+	Points     *pointssvc.Service
+	HMACSecret string
+	WindowSecs int
 }
 
-func New(repo *repository.GormRepo, act *activitiessvc.Service, p *pointssvc.Service, a *achvsvc.Service, secret string, windowSecs int) *Service {
+func New(repo *repository.GormRepo, act *activitiessvc.Service, p *pointssvc.Service, secret string, windowSecs int) *Service {
 	if windowSecs <= 0 {
 		windowSecs = 60
 	}
-	return &Service{Repo: repo, Activities: act, Points: p, Achievements: a, HMACSecret: secret, WindowSecs: windowSecs}
+	return &Service{Repo: repo, Activities: act, Points: p, HMACSecret: secret, WindowSecs: windowSecs}
 }
 
 type CheckCmd struct {
@@ -33,17 +31,12 @@ type CheckCmd struct {
 	UserID     int64
 	ActivityID int64
 	Code       string
-	GPSLat     *float64
-	GPSLng     *float64
-	QuizExpect string
-	QuizAnswer string
 }
 
 type CheckResult struct {
 	OK            bool
 	Reason        string
 	TransactionID int64
-	NewBadges     []int64
 	Points        int
 }
 
@@ -64,20 +57,8 @@ func (s *Service) Check(ctx context.Context, cmd CheckCmd) (*CheckResult, error)
 	if err != nil {
 		return s.reject(ctx, cmd, "活动不存在")
 	}
-	if act.LocationLat != nil && act.LocationLng != nil && act.RadiusM != nil && *act.RadiusM > 0 {
-		if cmd.GPSLat == nil || cmd.GPSLng == nil {
-			return s.reject(ctx, cmd, "需要 GPS 定位")
-		}
-		dist := HaversineMeters(*act.LocationLat, *act.LocationLng, *cmd.GPSLat, *cmd.GPSLng)
-		if dist > float64(*act.RadiusM) {
-			return s.reject(ctx, cmd, "不在活动地点范围内")
-		}
-	}
-	if cmd.QuizExpect != "" && !CheckQuiz(cmd.QuizExpect, cmd.QuizAnswer) {
-		return s.reject(ctx, cmd, "答题错误")
-	}
 
-	rec := &domain.SigninRecord{ActivityID: cmd.ActivityID, UserID: cmd.UserID, GPSLat: cmd.GPSLat, GPSLng: cmd.GPSLng, QuizAnswer: cmd.QuizAnswer, Result: "passed"}
+	rec := &domain.SigninRecord{ActivityID: cmd.ActivityID, UserID: cmd.UserID, Result: "passed"}
 	if err := s.Repo.CreateRecord(ctx, rec); err != nil {
 		return nil, err
 	}
@@ -95,14 +76,14 @@ func (s *Service) Check(ctx context.Context, cmd CheckCmd) (*CheckResult, error)
 	}
 	// 签到通过即视为「已参加」：把报名状态置为 checked_in（无报名记录则补建）。
 	_ = s.Activities.MarkCheckedIn(ctx, cmd.ActivityID, cmd.UserID)
-	newBadges, _ := s.Achievements.CheckTriggers(ctx, cmd.TenantID, cmd.UserID, act.DimensionID)
-	return &CheckResult{OK: true, TransactionID: tx.ID, NewBadges: newBadges, Points: reward}, nil
+	// 勋章授予不在此处自发，统一由全局 BadgeCelebration（POST /me/badges/check）结算，
+	// 否则会在「达成弹窗」之前把勋章悄悄发掉，签到首达成就没有弹窗提示。
+	return &CheckResult{OK: true, TransactionID: tx.ID, Points: reward}, nil
 }
 
 func (s *Service) reject(ctx context.Context, cmd CheckCmd, reason string) (*CheckResult, error) {
 	rec := &domain.SigninRecord{
 		ActivityID: cmd.ActivityID, UserID: cmd.UserID,
-		GPSLat: cmd.GPSLat, GPSLng: cmd.GPSLng, QuizAnswer: cmd.QuizAnswer,
 		Result: "rejected", Reason: reason,
 	}
 	_ = s.Repo.CreateRecord(ctx, rec)

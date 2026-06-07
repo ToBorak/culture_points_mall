@@ -16,9 +16,6 @@ type SigninRecord struct {
 	ID         int64     `gorm:"primaryKey"`
 	ActivityID int64     `gorm:"column:activity_id"`
 	UserID     int64     `gorm:"column:user_id"`
-	GPSLat     *float64  `gorm:"column:gps_lat"`
-	GPSLng     *float64  `gorm:"column:gps_lng"`
-	QuizAnswer string    `gorm:"column:quiz_answer"`
 	Result     string    `gorm:"column:result"`
 	Reason     string    `gorm:"column:reason"`
 	CreatedAt  time.Time `gorm:"column:created_at"`
