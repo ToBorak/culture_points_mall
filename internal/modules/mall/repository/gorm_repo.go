@@ -13,13 +13,16 @@ type GormRepo struct{ DB *gorm.DB }
 
 func New(db *gorm.DB) *GormRepo { return &GormRepo{DB: db} }
 
-func (r *GormRepo) ListItems(ctx context.Context, tenantID int64, typ string) ([]domain.Item, error) {
+func (r *GormRepo) ListItems(ctx context.Context, tenantID int64, typ string, onlyActive bool) ([]domain.Item, error) {
 	q := r.DB.WithContext(ctx).Where("tenant_id = ?", tenantID)
 	if typ != "" {
 		q = q.Where("type = ?", typ)
 	}
+	if onlyActive {
+		q = q.Where("status = ?", domain.StatusOnShelf)
+	}
 	var rows []domain.Item
-	err := q.Find(&rows).Error
+	err := q.Order("id DESC").Find(&rows).Error
 	return rows, err
 }
 
@@ -34,6 +37,20 @@ func (r *GormRepo) GetItem(ctx context.Context, tenantID, id int64) (*domain.Ite
 
 func (r *GormRepo) CreateItem(ctx context.Context, it *domain.Item) error {
 	return r.DB.WithContext(ctx).Create(it).Error
+}
+
+// UpdateItemFields 按 map 局部更新商品字段（name/cost/stock/image_url/status），便于改库存/改名/改积分/上下架。
+func (r *GormRepo) UpdateItemFields(ctx context.Context, tenantID, id int64, fields map[string]any) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	return r.DB.WithContext(ctx).Model(&domain.Item{}).
+		Where("tenant_id = ? AND id = ?", tenantID, id).Updates(fields).Error
+}
+
+// DeleteItem 硬删除商品（用于「撤销新增商品」的回撤）。
+func (r *GormRepo) DeleteItem(ctx context.Context, tenantID, id int64) error {
+	return r.DB.WithContext(ctx).Where("tenant_id = ? AND id = ?", tenantID, id).Delete(&domain.Item{}).Error
 }
 
 func (r *GormRepo) ListPrizes(ctx context.Context, boxID int64) ([]domain.BlindboxPrize, error) {

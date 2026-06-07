@@ -32,6 +32,7 @@ type publishReq struct {
 	PushGroup       bool     `json:"pushGroup"`
 	AttendeeAll     bool     `json:"attendeeAll"`
 	AttendeeUserIDs []string `json:"attendeeUserIds"`
+	CreateSchedule  *bool    `json:"createSchedule"` // 指针：缺省（老客户端）视为 true，显式传 false 才跳过建日程
 }
 
 // publish 走 SSE，把发布过程的每个阶段实时渲染成对话气泡（与 /admin/agent/chat 同款 step 协议）。
@@ -80,12 +81,25 @@ func (h *Handler) publish(c *gin.Context) {
 		Location: req.Location, Detail: req.Detail,
 		RoomIDs: req.RoomIDs, GroupIDs: req.GroupIDs, PushGroup: req.PushGroup,
 		AttendeeAll: req.AttendeeAll, AttendeeUserIDs: req.AttendeeUserIDs,
+		SkipSchedule: req.CreateSchedule != nil && !*req.CreateSchedule,
 	})
 
 	for _, st := range res.Stages {
 		emit(map[string]any{"kind": "tool_use", "toolName": st.Name})
 		if st.OK {
-			emit(map[string]any{"kind": "tool_result", "toolName": st.Name, "output": st.Output})
+			out := st.Output
+			// 给「建活动」这步挂上回撤入口：回撤=删活动记录（钉钉已推送的撤不回）。
+			if st.Name == "create_activity" && res.ActivityID > 0 {
+				if out == nil {
+					out = map[string]any{}
+				}
+				out["_undo"] = map[string]any{
+					"label":  "撤销发布活动「" + res.Title + "」",
+					"action": "activity_delete",
+					"params": map[string]any{"activity_id": res.ActivityID},
+				}
+			}
+			emit(map[string]any{"kind": "tool_result", "toolName": st.Name, "output": out})
 		} else {
 			emit(map[string]any{"kind": "tool_result", "toolName": st.Name, "error": st.Error})
 		}
@@ -101,6 +115,9 @@ func summary(res Result) string {
 		}
 	}
 	b := "✅ 活动「" + res.Title + "」已发布"
+	if res.ScheduleSkipped {
+		return b + "（按你的选择，本次未创建钉钉日程）。"
+	}
 	if res.CalendarEventID != "" {
 		b += "，已建钉钉日程并通知 " + strconv.Itoa(res.AttendeeCount) + " 人"
 	} else if res.AttendeeCount == 0 {

@@ -1,31 +1,21 @@
 dimensions:
   - code: customer_first
-    name: 客户至上
+    name: 客户第一
     keywords: 用户思维,服务意识,价值创造
     weight: 1.00
     sort_order: 1
-  - code: team_collab
-    name: 团队协作
-    keywords: 跨部门合作,互助互信,共同成长
+  - code: candor
+    name: 坦诚沟通
+    keywords: 开诚布公,就事论事,直面问题
     weight: 1.00
     sort_order: 2
-  - code: innovation
-    name: 创新求变
-    keywords: 突破常规,勇于尝试,变革驱动
+  - code: ownership
+    name: 一号位
+    keywords: 主人翁意识,担当负责,结果导向
     weight: 1.00
     sort_order: 3
-  - code: integrity
-    name: 诚信务实
-    keywords: 担当负责,说到做到,落地为王
+  - code: innovation
+    name: 敢于创新
+    keywords: 突破常规,勇于尝试,拥抱变化
     weight: 1.00
     sort_order: 4
-  - code: craftsmanship
-    name: 极致专注
-    keywords: 工匠精神,追求卓越,品质至上
-    weight: 1.00
-    sort_order: 5
-  - code: growth
-    name: 学习成长
-    keywords: 持续学习,知识分享,自我突破
-    weight: 1.00
-    sort_order: 6

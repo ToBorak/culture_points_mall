@@ -6,3 +6,7 @@ bin/
 tmp/
 .logs/
 configs/config.yaml
+
+# IDE / build artifacts
+.idea/
+/migrate

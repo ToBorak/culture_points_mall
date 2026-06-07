@@ -8,9 +8,15 @@ type Item struct {
 	Cost     int    `gorm:"column:cost"`
 	Stock    *int   `gorm:"column:stock"`
 	ImageURL string `gorm:"column:image_url"`
+	Status   string `gorm:"column:status"` // on_shelf=在售 / off_shelf=已下架
 }
 
 func (Item) TableName() string { return "mall_items" }
+
+const (
+	StatusOnShelf  = "on_shelf"
+	StatusOffShelf = "off_shelf"
+)
 
 type BlindboxPrize struct {
 	ID         int64  `gorm:"primaryKey"`

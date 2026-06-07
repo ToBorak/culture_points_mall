@@ -38,9 +38,20 @@ func (h *MeetingRoomsHandler) list(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+	// 兜底：管理后台开发态走 dev 登录，账号没有 unionId。会议室列表只用于「展示选择」，
+	// 真正占用会议室走日程组织者的 unionId（见 CreateCalendarEvent→addMeetingRooms），
+	// 故这里退而取本租户任一带真实 unionId 的员工来列会议室（排除 mock 冒烟种子用户；
+	// 本组织会议室为全员可见）。生产中管理员走钉钉登录、自带 unionId，不会进此分支。
 	if row.UnionID == "" {
-		// dev 登录等无 unionId 的账号：直接返回空，避免拿空 unionId 调钉钉报 user.not.employee
-		c.JSON(200, gin.H{"items": []gin.H{}, "note": "当前账号无 unionId，无法查询会议室（请用钉钉账号登录）"})
+		_ = h.db.WithContext(ctx).
+			Table("users").Select("union_id").
+			Where("tenant_id = ? AND union_id IS NOT NULL AND union_id <> '' AND union_id NOT LIKE 'mock%'", tid).
+			Order("id").Limit(1).
+			Scan(&row).Error
+	}
+	if row.UnionID == "" {
+		// dev 登录且本租户尚无任何钉钉员工：返回空，避免拿空 unionId 调钉钉报 user.not.employee
+		c.JSON(200, gin.H{"items": []gin.H{}, "note": "本租户暂无带 unionId 的员工，无法查询会议室（需先有员工用钉钉登录）"})
 		return
 	}
 

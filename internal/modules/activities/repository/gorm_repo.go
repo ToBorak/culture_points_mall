@@ -149,3 +149,10 @@ func (r *GormRepo) EnrollmentsByUserForActivities(ctx context.Context, userID in
 	}
 	return out, nil
 }
+
+// Delete 删除活动记录（用于「撤销发布活动」回撤）。
+func (r *GormRepo) Delete(ctx context.Context, tenantID, id int64) error {
+	return r.DB.WithContext(ctx).
+		Where("tenant_id = ? AND id = ?", tenantID, id).
+		Delete(&domain.Activity{}).Error
+}

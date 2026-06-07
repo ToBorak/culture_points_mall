@@ -82,6 +82,7 @@ func (CreateDingtalkCalendarTool) InputSchema() map[string]any {
 			"user_ids": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 			"location": map[string]any{"type": "string"},
 			"detail":   map[string]any{"type": "string"},
+			"room_ids": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "钉钉智能会议室 roomId 列表（可空）；表单「会议室」选了就带上，会自动预定会议室"},
 		},
 		"required": []string{"title", "start_at", "end_at", "user_ids"},
 	}
@@ -104,9 +105,23 @@ func (t CreateDingtalkCalendarTool) Execute(ctx context.Context, in map[string]a
 			userIDs = append(userIDs, anyString(v))
 		}
 	}
+	// room_ids 容错：LLM 可能传数组，也可能（单选会议室时）传单个字符串
+	var roomIDs []string
+	switch v := in["room_ids"].(type) {
+	case []any:
+		for _, x := range v {
+			if s := anyString(x); s != "" {
+				roomIDs = append(roomIDs, s)
+			}
+		}
+	case string:
+		if v != "" {
+			roomIDs = append(roomIDs, v)
+		}
+	}
 	id, err := t.Deps.Client.CreateCalendarEvent(ctx, dingtalk.CalendarRequest{
 		Title: anyString(in["title"]), StartAt: start, EndAt: end, UserIDs: userIDs,
-		Location: anyString(in["location"]), Detail: anyString(in["detail"]),
+		Location: anyString(in["location"]), Detail: anyString(in["detail"]), RoomIDs: roomIDs,
 	})
 	if err != nil {
 		return nil, err

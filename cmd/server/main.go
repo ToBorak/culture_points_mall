@@ -26,6 +26,8 @@ import (
 	"github.com/standardsoftware/culture_points_mall/internal/modules/mall/worker"
 	pointsrepo "github.com/standardsoftware/culture_points_mall/internal/modules/points/repository"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
+	usersrepo "github.com/standardsoftware/culture_points_mall/internal/modules/users/repository"
+	usersvc "github.com/standardsoftware/culture_points_mall/internal/modules/users/service"
 	valuesrepo "github.com/standardsoftware/culture_points_mall/internal/modules/values/repository"
 	valuessvc "github.com/standardsoftware/culture_points_mall/internal/modules/values/service"
 )
@@ -83,6 +85,9 @@ func main() {
 	})
 	tools.RegisterMall(toolReg, tools.MallDeps{Mall: mallSvc})
 	tools.RegisterDingtalk(toolReg, tools.DingDeps{Client: ding})
+	usersSvc := usersvc.New(usersrepo.New(db))
+	tools.RegisterInteractive(toolReg, tools.InteractiveDeps{Users: usersSvc, Achievements: achvSvcInst})
+	tools.RegisterBatch(toolReg, tools.BatchDeps{Points: pointsSvc, Users: usersSvc, Activities: actSvc})
 
 	orchestrator := agentsvc.NewOrchestrator(llmClient, toolReg, vsvc)
 	aRepo := agentrepo.New(db)

@@ -581,11 +581,9 @@ func topDimension(scores map[string]int, dims []valuesdomain.Dimension) (code, c
 	// hardcoded color map（与前端 dimColor 保持一致）
 	colorMap := map[string]string{
 		"customer_first": "#f97316",
-		"team_collab":    "#0ea5e9",
+		"candor":    "#0ea5e9",
 		"innovation":     "#ec4899",
-		"integrity":      "#10b981",
-		"craftsmanship":  "#8b5cf6",
-		"growth":         "#eab308",
+		"ownership":      "#10b981",
 	}
 	color = colorMap[code]
 	if color == "" {
@@ -614,11 +612,9 @@ func weakestDimension(scores []pointsdomain.DimensionScore, dims []valuesdomain.
 	}
 	colorMap := map[string]string{
 		"customer_first": "#f97316",
-		"team_collab":    "#0ea5e9",
+		"candor":    "#0ea5e9",
 		"innovation":     "#ec4899",
-		"integrity":      "#10b981",
-		"craftsmanship":  "#8b5cf6",
-		"growth":         "#eab308",
+		"ownership":      "#10b981",
 	}
 	// 找最弱（含 0 分）
 	var weakest *WeakDimInfo

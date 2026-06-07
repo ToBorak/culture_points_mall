@@ -29,7 +29,7 @@ func (CreateActivityTool) InputSchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"dimension_code": map[string]any{"type": "string", "description": "价值观维度代码，例如 team_collab"},
+			"dimension_code": map[string]any{"type": "string", "description": "价值观维度代码，例如 customer_first"},
 			"title":          map[string]any{"type": "string"},
 			"start_at":       map[string]any{"type": "string", "description": "RFC3339 时间"},
 			"end_at":         map[string]any{"type": "string"},
@@ -79,7 +79,7 @@ type OpenActivityFormTool struct{}
 
 func (OpenActivityFormTool) Name() string { return "open_activity_form" }
 func (OpenActivityFormTool) Description() string {
-	return "当 HR 想发布或创建一个活动时调用本工具，会在对话里弹出一张日程表单，让用户选择时间、会议室、参与人员（默认全员）。调用后只需用一句话提示用户填写表单，不要再自己调用 create_activity。可把已从用户话里识别到的标题/维度/时间作为预填项传入。"
+	return "当 HR 想发布或创建一个活动时调用本工具，会在对话里弹出一张表单：填活动标题/维度/时间/奖励积分，并可勾选「是否同时创建钉钉日程」（勾选后再选会议室、参与人员、群推送）。调用后只需用一句话提示用户填写表单、并说明可自行决定是否创建日程，不要再自己调用 create_activity。可把已从用户话里识别到的标题/维度/时间作为预填项传入。"
 }
 func (OpenActivityFormTool) InputSchema() map[string]any {
 	return map[string]any{
@@ -188,15 +188,24 @@ func (t AddPointsTool) Execute(ctx context.Context, in map[string]any) (map[stri
 	if tid == 0 {
 		tid = 1
 	}
+	amount := anyInt(in["amount"])
+	dimCode := anyString(in["dimension_code"])
 	tx, err := t.Deps.Points.AddPoints(ctx, pointssvc.AddPointsCmd{
-		TenantID: tid, UserID: int64(anyInt(in["user_id"])), Amount: anyInt(in["amount"]),
-		DimCode: anyString(in["dimension_code"]), Reason: anyString(in["reason"]),
+		TenantID: tid, UserID: int64(anyInt(in["user_id"])), Amount: amount,
+		DimCode: dimCode, Reason: anyString(in["reason"]),
 	})
 	if err != nil {
 		return nil, err
 	}
 	newBadges, _ := t.Deps.Achievements.CheckTriggers(ctx, tid, tx.UserID, tx.DimensionID)
-	return map[string]any{"transaction_id": tx.ID, "new_badges": newBadges}, nil
+	return map[string]any{
+		"transaction_id": tx.ID, "new_badges": newBadges,
+		"_undo": map[string]any{
+			"label":  "撤销本次积分变动",
+			"action": "points_reverse",
+			"params": map[string]any{"user_id": tx.UserID, "amount": amount, "dimension_code": dimCode},
+		},
+	}, nil
 }
 
 // ---- get_leaderboard ----

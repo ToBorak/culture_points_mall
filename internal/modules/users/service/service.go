@@ -18,3 +18,7 @@ func (s *Service) GetByID(ctx context.Context, tenantID, id int64) (*domain.User
 func (s *Service) List(ctx context.Context, tenantID int64) ([]domain.User, error) {
 	return s.Repo.ListByTenant(ctx, tenantID, 200)
 }
+
+func (s *Service) ListWithDept(ctx context.Context, tenantID int64) ([]repository.UserWithDept, error) {
+	return s.Repo.ListWithDept(ctx, tenantID)
+}

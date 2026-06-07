@@ -221,3 +221,20 @@ func (s *Service) Unenroll(ctx context.Context, tenantID, userID, activityID int
 func (s *Service) MarkCheckedIn(ctx context.Context, activityID, userID int64) error {
 	return s.Repo.MarkCheckedIn(ctx, activityID, userID)
 }
+
+// Delete 删除活动（用于「撤销发布活动」回撤）。
+func (s *Service) Delete(ctx context.Context, tenantID, id int64) error {
+	return s.Repo.Delete(ctx, tenantID, id)
+}
+
+// SetStatus 改活动状态（批量关闭/重新发布），返回改之前的状态供「回撤」还原。
+func (s *Service) SetStatus(ctx context.Context, tenantID, id int64, status domain.Status) (domain.Status, error) {
+	a, err := s.Repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return "", err
+	}
+	if err := s.Repo.UpdateStatus(ctx, id, status); err != nil {
+		return "", err
+	}
+	return a.Status, nil
+}

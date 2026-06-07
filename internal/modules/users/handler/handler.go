@@ -34,14 +34,14 @@ func (h *Handler) RegisterAdmin(rg *gin.RouterGroup) {
 
 func (h *Handler) list(c *gin.Context) {
 	tid := cpmctx.TenantID(c.Request.Context())
-	rows, err := h.Svc.List(c.Request.Context(), tid)
+	rows, err := h.Svc.ListWithDept(c.Request.Context(), tid)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 	out := make([]gin.H, 0, len(rows))
 	for _, u := range rows {
-		out = append(out, gin.H{"id": u.ID, "dingUserId": u.DingUserID, "name": u.Name})
+		out = append(out, gin.H{"id": u.ID, "dingUserId": u.DingUserID, "name": u.Name, "deptId": u.DeptID, "deptName": u.DeptName})
 	}
 	c.JSON(200, gin.H{"items": out})
 }

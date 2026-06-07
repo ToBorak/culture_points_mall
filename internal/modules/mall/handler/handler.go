@@ -34,7 +34,7 @@ func (h *Handler) list(c *gin.Context) {
 	if tid == 0 {
 		tid = 1
 	}
-	rows, err := h.Repo.ListItems(c.Request.Context(), tid, c.Query("type"))
+	rows, err := h.Repo.ListItems(c.Request.Context(), tid, c.Query("type"), true) // 商城只展示在售商品
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return

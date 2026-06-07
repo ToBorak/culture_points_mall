@@ -51,6 +51,7 @@ type Cmd struct {
 	PushGroup       bool
 	AttendeeAll     bool     // true=全员
 	AttendeeUserIDs []string // 非全员时的钉钉 userid 列表
+	SkipSchedule    bool     // true=只创建活动，不建钉钉日程（不解析参与人、不推会议室/群）
 }
 
 // Stage 单个执行阶段的结果，供上层逐条渲染成对话气泡。
@@ -67,6 +68,7 @@ type Result struct {
 	CalendarEventID string
 	ScheduleStatus  string
 	AttendeeCount   int
+	ScheduleSkipped bool // 用户选择「不创建日程」时为 true
 	Stages          []Stage
 }
 
@@ -94,6 +96,12 @@ func (s *Service) Publish(ctx context.Context, cmd Cmd) Result {
 	res.Stages = append(res.Stages, Stage{Name: "create_activity", OK: true, Output: map[string]any{
 		"activity_id": act.ID, "title": act.Title, "status": string(act.Status),
 	}})
+
+	// 用户选择「不创建日程」：到此为止，只落地活动本身（也就不会去解析参与人/建日历/推群）。
+	if cmd.SkipSchedule {
+		res.ScheduleSkipped = true
+		return res
+	}
 
 	// 解析参与人：全员 = 本租户所有有 ding_user_id 的成员
 	attendees := cmd.AttendeeUserIDs

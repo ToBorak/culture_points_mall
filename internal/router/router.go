@@ -12,8 +12,6 @@ import (
 
 	insightsh "github.com/standardsoftware/culture_points_mall/internal/modules/insights/handler"
 	insightsservice "github.com/standardsoftware/culture_points_mall/internal/modules/insights/service"
-	layoutsh "github.com/standardsoftware/culture_points_mall/internal/modules/layouts/handler"
-	layoutsservice "github.com/standardsoftware/culture_points_mall/internal/modules/layouts/service"
 	"github.com/standardsoftware/culture_points_mall/internal/config"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/dingtalk"
 	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
@@ -135,28 +133,29 @@ func Build(deps Deps) *gin.Engine {
 		insightsh.New(insightsSvc).Register(authed)
 	}
 
-	// 布局编排（admin 拖拽自定义 H5 首页模块顺序）
-	layoutsHandler := layoutsh.New(layoutsservice.New(deps.DB))
-	layoutsHandler.Register(authed)
-
 	// 后台管理组：JWT + 用户存在性 + admin 角色门禁
 	admin := r.Group("/", auth.RequireJWTWithUser(signer, deps.DB), auth.RequireRole("admin"))
 	valuesHandler.RegisterAdmin(admin)
 	actHandler.RegisterAdmin(admin)
 	signinHandlerInst.RegisterAdmin(admin)
-	layoutsHandler.RegisterAdmin(admin)
 	mallHandler.RegisterAdmin(admin)
 	dingtalk.NewMockHandler(deps.DB, deps.DingBus).Register(admin)
 	usersHandler.RegisterAdmin(admin)
 	dingtalk.NewRobotsHandler(deps.Cfg.DingTalk.Robots).RegisterAdmin(admin)
 	dingtalk.NewMeetingRoomsHandler(deps.DingClient, deps.DB).RegisterAdmin(admin)
-	scheduleSvc := schedulesvc.New(schedulerepo.New(deps.DB), deps.DingClient)
+	scheduleSvc := schedulesvc.New(schedulerepo.New(deps.DB), deps.DingClient).WithLLM(deps.LLM)
 	scheduleh.New(scheduleSvc).RegisterAdmin(admin)
 	// 发布活动 = 建活动 + 建日程（日历/会议室/全员/群推送）一次性编排，供 HR-Agent 日程表单提交
 	publishmod.NewHandler(publishmod.New(actSvc, scheduleSvc, usersSvc)).RegisterAdmin(admin)
 	if deps.AgentHandler != nil {
 		deps.AgentHandler.Register(admin)
 	}
+	// 「回撤」：把上一步修改类操作精确逆转（积分/商品干净还原；活动删除/状态还原尽力而为）。
+	agenthandler.NewUndo(agenthandler.UndoDeps{
+		Points:     pointsSvc,
+		Mall:       mallSvc,
+		Activities: actSvc,
+	}).Register(admin)
 
 	return r
 }

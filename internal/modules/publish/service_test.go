@@ -75,6 +75,26 @@ func TestPublish_ExplicitAttendees(t *testing.T) {
 	require.Equal(t, []string{"x1", "x2", "x3"}, sched.cmd.AttendeeUserIDs)
 }
 
+func TestPublish_SkipSchedule(t *testing.T) {
+	act := &fakeAct{}
+	sched := &fakeSched{}
+	users := &fakeUsers{users: []usersdomain.User{{DingUserID: "u1"}, {DingUserID: "u2"}}}
+	s := New(act, sched, users)
+	now := time.Now()
+	res := s.Publish(context.Background(), Cmd{
+		TenantID: 1, Title: "只发活动不建日程", DimensionCode: "team",
+		StartAt: now, EndAt: now.Add(time.Hour),
+		AttendeeAll: true, SkipSchedule: true,
+	})
+	require.Equal(t, int64(7), res.ActivityID)
+	require.True(t, res.ScheduleSkipped)
+	require.Empty(t, res.CalendarEventID)
+	require.Equal(t, 0, res.AttendeeCount)     // 没去解析参与人
+	require.Len(t, res.Stages, 1)              // 只有 create_activity 一个阶段
+	require.True(t, res.Stages[0].OK)
+	require.Empty(t, sched.cmd.Title)          // schedule.Create 完全没被调用
+}
+
 func TestPublish_ActivityErrorShortCircuits(t *testing.T) {
 	act := &fakeAct{err: activitiessvc.ErrInvalidDimension}
 	sched := &fakeSched{}
