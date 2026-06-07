@@ -129,6 +129,12 @@ func (r *GormRepo) ListWinnersBySeason(ctx context.Context, seasonID int64) ([]d
 	return rows, err
 }
 
+func (r *GormRepo) UpdateNominationRefined(ctx context.Context, tenantID, id int64, refined string, tags string) error {
+	return r.DB.WithContext(ctx).Model(&domain.Nomination{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Updates(map[string]interface{}{"case_refined": refined, "ai_tags": tags}).Error
+}
+
 func (r *GormRepo) UserExists(ctx context.Context, tenantID, userID int64) (bool, error) {
 	var exists int
 	err := r.DB.WithContext(ctx).

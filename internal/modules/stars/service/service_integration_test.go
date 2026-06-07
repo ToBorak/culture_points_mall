@@ -89,7 +89,7 @@ func newTestSvc() *starssvc.Service {
 		WinnerPoints:        8,
 		NominateMonthlyCap:  6,
 		NominatedMonthlyCap: 16,
-	})
+	}, nil)
 }
 
 // truncateAll 隔离每个用例：清空相关表。

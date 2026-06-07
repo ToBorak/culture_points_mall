@@ -103,7 +103,7 @@ func Build(deps Deps) *gin.Engine {
 	valuesSvc := valuessvc.New(valuesRepo)
 	pointsRepo := pointsrepo.New(deps.DB)
 	pointsSvc := pointssvc.New(deps.DB, pointsRepo, valuesSvc, deps.Redis)
-	starsSvc := starssvc.New(starsrepo.New(deps.DB), pointsSvc, deps.Cfg.Stars)
+	starsSvc := starssvc.New(starsrepo.New(deps.DB), pointsSvc, deps.Cfg.Stars, deps.LLM)
 	starsHandler := starsh.New(starsSvc)
 	pubService := pubsvc.New(pubrepo.New(deps.DB))
 	pubHandler := pubh.New(pubService)

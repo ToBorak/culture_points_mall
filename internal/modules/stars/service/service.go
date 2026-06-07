@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -11,15 +12,17 @@ import (
 	"github.com/standardsoftware/culture_points_mall/internal/config"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
 	"github.com/standardsoftware/culture_points_mall/internal/modules/stars/domain"
+	"github.com/standardsoftware/culture_points_mall/internal/platform/llm"
 )
 
 type Service struct {
 	Repo   domain.Repository
 	Points *pointssvc.Service
 	Cfg    config.StarsCfg
+	LLM    llm.Client
 }
 
-func New(repo domain.Repository, points *pointssvc.Service, cfg config.StarsCfg) *Service {
+func New(repo domain.Repository, points *pointssvc.Service, cfg config.StarsCfg, llmC llm.Client) *Service {
 	if cfg.NominatePoints == 0 {
 		cfg.NominatePoints = 2
 	}
@@ -35,7 +38,7 @@ func New(repo domain.Repository, points *pointssvc.Service, cfg config.StarsCfg)
 	if cfg.NominatedMonthlyCap == 0 {
 		cfg.NominatedMonthlyCap = 16
 	}
-	return &Service{Repo: repo, Points: points, Cfg: cfg}
+	return &Service{Repo: repo, Points: points, Cfg: cfg, LLM: llmC}
 }
 
 var (
@@ -43,6 +46,7 @@ var (
 	ErrDuplicateNomination = errors.New("你已提报过该对象的同一价值观")
 	ErrNomineeNotFound     = errors.New("被提名人不存在")
 	ErrNotJudging          = errors.New("季次不在评审阶段")
+	ErrLLMUnavailable      = errors.New("AI 能力未配置")
 )
 
 // isDuplicateKey 判断是否为 MySQL 唯一键冲突（1062）。
@@ -140,7 +144,35 @@ func (s *Service) Nominate(ctx context.Context, cmd NominateCmd) (*domain.Nomina
 			})
 		}
 	}
+	// AI② best-effort：提炼案例 + 价值观标签，失败不影响提报
+	if s.LLM != nil {
+		s.refineNomination(ctx, cmd.TenantID, n)
+	}
 	return n, nil
+}
+
+func (s *Service) refineNomination(ctx context.Context, tenantID int64, n *domain.Nomination) {
+	system := `你是企业文化案例编辑，把员工口语化的提名理由提炼成简洁有力的践行小故事，并打价值观标签。`
+	user := fmt.Sprintf(`提名理由原文：%s
+
+严格输出 JSON：
+{
+  "refined": "80-120 字的践行故事，第三人称，具体不空泛",
+  "tags": ["2-4 个价值观/行为标签，每个 4 字内"]
+}`, n.CaseText)
+	raw, err := llm.MessagesJSON(ctx, s.LLM, system, user, 800)
+	if err != nil {
+		return
+	}
+	var parsed struct {
+		Refined string   `json:"refined"`
+		Tags    []string `json:"tags"`
+	}
+	if json.Unmarshal([]byte(raw), &parsed) != nil || parsed.Refined == "" {
+		return
+	}
+	tagsJSON, _ := json.Marshal(parsed.Tags)
+	_ = s.Repo.UpdateNominationRefined(ctx, tenantID, n.ID, parsed.Refined, string(tagsJSON))
 }
 
 // SeasonQuota 当前季次 + 本月提报剩余可得积分。

@@ -21,6 +21,7 @@ type Repository interface {
 	CountNominationsByNomineeSince(ctx context.Context, tenantID, nomineeID int64, since time.Time) (int64, error)
 	UpdateNominationScore(ctx context.Context, tenantID, id int64, score float64) error
 	UpdateNominationStatus(ctx context.Context, tenantID, id int64, status NominationStatus) error
+	UpdateNominationRefined(ctx context.Context, tenantID, id int64, refined string, tags string) error
 
 	// CreateWinnerIfAbsent 命中 uk_season_user_dim 时不报错，返回是否新建。
 	CreateWinnerIfAbsent(ctx context.Context, w *Winner) (created bool, err error)
