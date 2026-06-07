@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -204,5 +205,66 @@ func (s *Service) Score(ctx context.Context, tenantID, seasonID, nominationID in
 // ListNominations 列出某季次全部提报（评委视角）。
 func (s *Service) ListNominations(ctx context.Context, seasonID int64) ([]domain.Nomination, error) {
 	return s.Repo.ListNominationsBySeason(ctx, seasonID)
+}
+
+// Pick 是定榜时的一条当选记录。
+type Pick struct {
+	UserID             int64
+	DimensionID        int64
+	SourceNominationID *int64
+	Citation           string
+}
+
+// SelectWinners 幂等定榜：季次须处于 judging；对每个 pick 三步幂等写入。
+// exactly-once 依据：winner 表 uk_season_user_dim 是幂等闸门，
+// 只有真正新建（created==true）才发 +WinnerPoints；重跑时 winner 已存在
+// -> created==false -> 不重复发分。
+func (s *Service) SelectWinners(ctx context.Context, tenantID, seasonID int64, picks []Pick) error {
+	season, err := s.Repo.GetSeason(ctx, tenantID, seasonID)
+	if err != nil {
+		return err
+	}
+	if season.Status != domain.SeasonJudging {
+		return ErrNotJudging
+	}
+	for _, p := range picks {
+		// 1) 幂等建 winner（uk 命中则 created=false）
+		var citation *string
+		if p.Citation != "" {
+			c := p.Citation
+			citation = &c
+		}
+		created, err := s.Repo.CreateWinnerIfAbsent(ctx, &domain.Winner{
+			TenantID:           tenantID,
+			SeasonID:           seasonID,
+			UserID:             p.UserID,
+			DimensionID:        p.DimensionID,
+			Citation:           citation,
+			SourceNominationID: p.SourceNominationID,
+		})
+		if err != nil {
+			return err
+		}
+		// 2) 幂等置提名 status=selected
+		if p.SourceNominationID != nil {
+			if err := s.Repo.UpdateNominationStatus(ctx, *p.SourceNominationID, domain.NominationSelected); err != nil {
+				return err
+			}
+		}
+		// 3) 幂等发评选积分：仅当本次确为新晋 winner 才发（避免重跑重复发）
+		if created {
+			_, err := s.Points.AddPoints(ctx, pointssvc.AddPointsCmd{
+				TenantID:    tenantID,
+				UserID:      p.UserID,
+				Amount:      s.Cfg.WinnerPoints,
+				DimensionID: p.DimensionID,
+				Reason:      fmt.Sprintf("评选当选-S%d-D%d", seasonID, p.DimensionID),
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 

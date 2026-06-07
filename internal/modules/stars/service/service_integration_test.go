@@ -266,6 +266,63 @@ func TestNominate_DuplicateRejected(t *testing.T) {
 	require.ErrorIs(t, err, starssvc.ErrDuplicateNomination)
 }
 
+func TestSelectWinners_Idempotent(t *testing.T) {
+	truncateAll(t)
+	ctx := context.Background()
+	svc := newTestSvc()
+	const tenantID = int64(1)
+
+	// 准备维度和用户
+	vr := valuesrepo.New(testDB)
+	vs := valuessvc.New(vr)
+	dimID := insertDimension(t, ctx, vs, tenantID, "dim_winner")
+	_ = insertUser(t, tenantID, "任意用户U1") // 占位，确保 LAST_INSERT_ID 推进
+	u2 := insertUser(t, tenantID, "当选用户U2")
+
+	// 建季次并推进到 judging 状态
+	sn := &domain.Season{
+		TenantID:    tenantID,
+		Name:        "定榜测试季",
+		QuarterCode: "2026Q9",
+		Status:      domain.SeasonJudging,
+	}
+	require.NoError(t, svc.Repo.CreateSeason(ctx, sn))
+	seasonID := sn.ID
+
+	picks := []starssvc.Pick{
+		{UserID: u2, DimensionID: dimID, Citation: "优秀表现"},
+	}
+
+	// 第一次 SelectWinners
+	require.NoError(t, svc.SelectWinners(ctx, tenantID, seasonID, picks))
+
+	// 断言：star_winners 1 行
+	var winnerCount int64
+	require.NoError(t, testDB.Raw(
+		"SELECT COUNT(*) FROM star_winners WHERE season_id=? AND user_id=? AND dimension_id=?",
+		seasonID, u2, dimID,
+	).Scan(&winnerCount).Error)
+	require.Equal(t, int64(1), winnerCount, "第一次定榜后 star_winners 应有 1 行")
+
+	// 断言：U2 在该维度评选积分 = WinnerPoints = 8
+	pts1 := sumPoints(t, tenantID, u2, dimID)
+	require.Equal(t, 8, pts1, "第一次定榜后评选积分应为 8")
+
+	// 第二次用相同参数再调（幂等重跑）
+	require.NoError(t, svc.SelectWinners(ctx, tenantID, seasonID, picks))
+
+	// 断言：star_winners 仍 1 行（不重复插入）
+	require.NoError(t, testDB.Raw(
+		"SELECT COUNT(*) FROM star_winners WHERE season_id=? AND user_id=? AND dimension_id=?",
+		seasonID, u2, dimID,
+	).Scan(&winnerCount).Error)
+	require.Equal(t, int64(1), winnerCount, "第二次定榜后 star_winners 仍应为 1 行（幂等）")
+
+	// 断言：积分仍 = 8（不翻倍）
+	pts2 := sumPoints(t, tenantID, u2, dimID)
+	require.Equal(t, 8, pts2, "第二次定榜后积分不应翻倍，仍为 8")
+}
+
 func TestNominate_SeasonNotOpen(t *testing.T) {
 	truncateAll(t)
 	ctx := context.Background()
