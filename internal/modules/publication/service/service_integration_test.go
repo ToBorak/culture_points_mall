@@ -252,3 +252,127 @@ func TestAggregate_WritesSnapshots(t *testing.T) {
 	require.NoError(t, testDB.Raw("SELECT COUNT(*) FROM publication_snapshots WHERE publication_id = ?", pub.ID).Scan(&snapCount2).Error)
 	require.Equal(t, int64(3), snapCount2, "第二次 Aggregate 后仍应为 3 行（幂等）")
 }
+
+// TestGetCurrent_AssemblesView 验证 GetCurrent 读组装：
+//   - 快照类栏目 (star, visible) 的 Snapshot 非空且可反序列化出 winner 行
+//   - 成稿类栏目 (custom, visible) 的 Articles 含预期文章
+//   - invisible 栏目被排除
+//   - Sections 按 sort_order 有序
+func TestGetCurrent_AssemblesView(t *testing.T) {
+	truncateAll(t)
+	ctx := context.Background()
+	svc := newTestSvc()
+	const tenantID = int64(1)
+
+	// ── 建季次 ──────────────────────────────────────────────────────────────
+	require.NoError(t, testDB.Exec(
+		"INSERT INTO star_seasons (tenant_id, name, quarter_code, status) VALUES (?, ?, ?, 'judging')",
+		tenantID, "2026Q2测试季", "2026Q2",
+	).Error)
+	var seasonID int64
+	require.NoError(t, testDB.Raw("SELECT LAST_INSERT_ID()").Scan(&seasonID).Error)
+
+	// ── 建期刊（draft，带 season + period）──────────────────────────────────
+	periodStart := time.Date(2026, 5, 1, 0, 0, 0, 0, time.Local)
+	periodEnd := time.Date(2026, 5, 31, 23, 59, 59, 0, time.Local)
+	pub, err := svc.CreateIssue(ctx, pubsvc.CreateIssueCmd{
+		TenantID:    tenantID,
+		SeasonID:    &seasonID,
+		Title:       "2026年5月读组装测试刊",
+		PeriodCode:  "2026-05-assemble",
+		PeriodStart: &periodStart,
+		PeriodEnd:   &periodEnd,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, pub.ID)
+
+	// ── 配 3 个栏目：star(可见,sort=1) + custom(可见,sort=2) + editorial(不可见,sort=3) ──
+	err = svc.ConfigureSections(ctx, tenantID, pub.ID, []domain.Section{
+		{Type: domain.SecStar, Title: "明星员工", SortOrder: 1, Visible: true},
+		{Type: domain.SecCustom, Title: "自定义文章", SortOrder: 2, Visible: true},
+		{Type: domain.SecEditorial, Title: "卷首语(不可见)", SortOrder: 3, Visible: false},
+	})
+	require.NoError(t, err)
+
+	// 查询刚写入的 section ID，供后续使用
+	var sections []domain.Section
+	require.NoError(t, testDB.
+		Where("publication_id = ?", pub.ID).
+		Order("sort_order ASC").
+		Find(&sections).Error)
+	require.Len(t, sections, 3)
+	starSectionID := sections[0].ID   // sort_order=1, star
+	customSectionID := sections[1].ID // sort_order=2, custom
+	// sections[2] is editorial (invisible)
+
+	// ── 造 star 源数据（2 个获奖者）──────────────────────────────────────────
+	u1 := insertUser(t, tenantID, "张三-assemble")
+	u2 := insertUser(t, tenantID, "李四-assemble")
+	d1 := insertDimension(t, tenantID, "innovation-asm")
+	d2 := insertDimension(t, tenantID, "teamwork-asm")
+
+	require.NoError(t, testDB.Exec(
+		"INSERT INTO star_winners (tenant_id, season_id, user_id, dimension_id, citation) VALUES (?,?,?,?,?),(?,?,?,?,?)",
+		tenantID, seasonID, u1, d1, "创新先锋-assemble",
+		tenantID, seasonID, u2, d2, "协作标杆-assemble",
+	).Error)
+
+	// ── Aggregate（写入 star 快照）────────────────────────────────────────────
+	require.NoError(t, svc.Aggregate(ctx, tenantID, pub.ID))
+
+	// ── 建一篇 custom 文章，SectionID 指向 custom 栏目 ────────────────────────
+	article := &domain.Article{
+		TenantID:      tenantID,
+		PublicationID: &pub.ID,
+		SectionID:     &customSectionID,
+		Title:         "自定义文章标题",
+		ContentHTML:   "<p>正文内容</p>",
+	}
+	require.NoError(t, svc.UpsertArticle(ctx, tenantID, article))
+	require.NotZero(t, article.ID)
+
+	// ── Publish ────────────────────────────────────────────────────────────────
+	require.NoError(t, svc.Publish(ctx, tenantID, pub.ID))
+
+	// ── 调 GetCurrent 断言组装结果 ────────────────────────────────────────────
+	v, err := svc.GetCurrent(ctx, tenantID)
+	require.NoError(t, err)
+
+	// Publication 非 nil 且 Status = published
+	require.NotNil(t, v.Publication)
+	require.Equal(t, domain.PubPublished, v.Publication.Status)
+
+	// Sections 只含 visible 栏目（star + custom），editorial 被排除
+	require.Len(t, v.Sections, 2, "invisible 栏目应被排除，只剩 2 个可见栏目")
+
+	// 按 sort_order 有序：star(1) → custom(2)
+	require.Equal(t, domain.SecStar, v.Sections[0].Section.Type, "第一个栏目应为 star")
+	require.Equal(t, domain.SecCustom, v.Sections[1].Section.Type, "第二个栏目应为 custom")
+
+	// star 栏目的 Snapshot 非空，可反序列化出 2 条 winner 行
+	require.NotEmpty(t, v.Sections[0].Snapshot, "star 栏目的 Snapshot 不应为空")
+	var starRows []domain.StarWinnerRow
+	require.NoError(t, json.Unmarshal(v.Sections[0].Snapshot, &starRows), "star Snapshot 应可反序列化为 StarWinnerRow 切片")
+	require.Len(t, starRows, 2, "star 快照应含 2 条 winner 行")
+
+	// custom 栏目的 Articles 含那篇文章
+	require.Len(t, v.Sections[1].Articles, 1, "custom 栏目应含 1 篇文章")
+	require.Equal(t, "自定义文章标题", v.Sections[1].Articles[0].Title)
+
+	// ── （可选）调 GetDetail 断言同样组装 ──────────────────────────────────────
+	vd, err := svc.GetDetail(ctx, tenantID, pub.ID)
+	require.NoError(t, err)
+	require.Equal(t, v.Publication.ID, vd.Publication.ID)
+	require.Len(t, vd.Sections, 2, "GetDetail 也应排除 invisible 栏目")
+
+	// 验证 star 快照在 GetDetail 中也可用
+	var starRowsD []domain.StarWinnerRow
+	require.NotEmpty(t, vd.Sections[0].Snapshot)
+	require.NoError(t, json.Unmarshal(vd.Sections[0].Snapshot, &starRowsD))
+	require.Len(t, starRowsD, 2)
+
+	// 验证 custom 文章 ID 与 section 映射正确（防止 artBySection 分组错误）
+	require.Equal(t, starSectionID, vd.Sections[0].Section.ID, "star 栏目 ID 应匹配")
+	require.Equal(t, customSectionID, vd.Sections[1].Section.ID, "custom 栏目 ID 应匹配")
+	require.Equal(t, article.ID, vd.Sections[1].Articles[0].ID, "custom 文章 ID 应匹配")
+}

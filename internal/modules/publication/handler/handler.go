@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"github.com/standardsoftware/culture_points_mall/internal/modules/publication/domain"
 	pubsvc "github.com/standardsoftware/culture_points_mall/internal/modules/publication/service"
@@ -52,7 +54,12 @@ func (h *Handler) create(c *gin.Context) {
 		TenantID: tid, SeasonID: req.SeasonID, Title: req.Title, PeriodCode: req.PeriodCode,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, p)
@@ -83,7 +90,14 @@ func (h *Handler) configureSections(c *gin.Context) {
 		})
 	}
 	if err := h.Svc.ConfigureSections(c.Request.Context(), tid, pubID, secs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		case errors.Is(err, pubsvc.ErrNotDraft):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
@@ -93,7 +107,12 @@ func (h *Handler) aggregate(c *gin.Context) {
 	tid := cpmctx.TenantID(c.Request.Context())
 	pubID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err := h.Svc.Aggregate(c.Request.Context(), tid, pubID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
@@ -109,7 +128,14 @@ func (h *Handler) upsertArticle(c *gin.Context) {
 	}
 	a.PublicationID = &pubID
 	if err := h.Svc.UpsertArticle(c.Request.Context(), tid, &a); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		case errors.Is(err, pubsvc.ErrNotDraft):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, a)
@@ -119,7 +145,14 @@ func (h *Handler) publish(c *gin.Context) {
 	tid := cpmctx.TenantID(c.Request.Context())
 	pubID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err := h.Svc.Publish(c.Request.Context(), tid, pubID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		case errors.Is(err, pubsvc.ErrNotDraft):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
@@ -131,7 +164,12 @@ func (h *Handler) adminDetail(c *gin.Context) {
 	pubID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	v, err := h.Svc.GetDetail(c.Request.Context(), tid, pubID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, v)
@@ -166,7 +204,12 @@ func (h *Handler) detail(c *gin.Context) {
 	pubID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	v, err := h.Svc.GetDetail(c.Request.Context(), tid, pubID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	// 安全加固：员工端只能读已发布刊物，草稿/归档一律 404。
