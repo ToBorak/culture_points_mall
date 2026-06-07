@@ -141,3 +141,46 @@ func (s *Service) Nominate(ctx context.Context, cmd NominateCmd) (*domain.Nomina
 	}
 	return n, nil
 }
+
+// SeasonQuota 当前季次 + 本月提报剩余可得积分。
+type SeasonQuota struct {
+	Season            *domain.Season `json:"season"`
+	NominateRemaining int            `json:"nominateRemaining"` // 本月提报还能得多少分
+}
+
+// CreateSeason 创建季次；未指定 Status 时默认 nominating。
+func (s *Service) CreateSeason(ctx context.Context, sn *domain.Season) error {
+	if sn.Status == "" {
+		sn.Status = domain.SeasonNominating
+	}
+	return s.Repo.CreateSeason(ctx, sn)
+}
+
+// CurrentSeasonWithQuota 查当前活跃季次并附带调用人本月提报剩余可得积分。
+func (s *Service) CurrentSeasonWithQuota(ctx context.Context, tenantID, userID int64) (*SeasonQuota, error) {
+	season, err := s.Repo.GetCurrentSeason(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	cnt, err := s.Repo.CountNominationsByNominatorSince(ctx, tenantID, userID, monthStart(time.Now()))
+	if err != nil {
+		return nil, err
+	}
+	earned := int(cnt) * s.Cfg.NominatePoints
+	remaining := s.Cfg.NominateMonthlyCap - earned
+	if remaining < 0 {
+		remaining = 0
+	}
+	return &SeasonQuota{Season: season, NominateRemaining: remaining}, nil
+}
+
+// MyNominations 查用户本季次的「我提报的」和「被人提报的」记录。
+func (s *Service) MyNominations(ctx context.Context, tenantID, userID, seasonID int64) (submitted, received []domain.Nomination, err error) {
+	submitted, err = s.Repo.ListNominationsByNominator(ctx, tenantID, userID, seasonID)
+	if err != nil {
+		return nil, nil, err
+	}
+	received, err = s.Repo.ListNominationsByNominee(ctx, tenantID, userID, seasonID)
+	return submitted, received, err
+}
+
