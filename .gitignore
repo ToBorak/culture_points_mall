@@ -14,3 +14,6 @@ configs/config.yaml
 # 图片上传目录：运行期上传不入库，仅保留种子图（uploads/seed/）
 /uploads/*
 !/uploads/seed/
+
+# brainstorm 可视化产物
+.superpowers/
