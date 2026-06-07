@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	activitiessvc "github.com/standardsoftware/culture_points_mall/internal/modules/activities/service"
 	achvsvc "github.com/standardsoftware/culture_points_mall/internal/modules/achievements/service"
+	activitiessvc "github.com/standardsoftware/culture_points_mall/internal/modules/activities/service"
 	pointssvc "github.com/standardsoftware/culture_points_mall/internal/modules/points/service"
 	"github.com/standardsoftware/culture_points_mall/internal/modules/signin/domain"
 	"github.com/standardsoftware/culture_points_mall/internal/modules/signin/repository"
@@ -44,6 +44,7 @@ type CheckResult struct {
 	Reason        string
 	TransactionID int64
 	NewBadges     []int64
+	Points        int
 }
 
 var ErrAlreadySignedIn = errors.New("已经签到过本活动")
@@ -92,8 +93,10 @@ func (s *Service) Check(ctx context.Context, cmd CheckCmd) (*CheckResult, error)
 	if err != nil {
 		return nil, err
 	}
+	// 签到通过即视为「已参加」：把报名状态置为 checked_in（无报名记录则补建）。
+	_ = s.Activities.MarkCheckedIn(ctx, cmd.ActivityID, cmd.UserID)
 	newBadges, _ := s.Achievements.CheckTriggers(ctx, cmd.TenantID, cmd.UserID, act.DimensionID)
-	return &CheckResult{OK: true, TransactionID: tx.ID, NewBadges: newBadges}, nil
+	return &CheckResult{OK: true, TransactionID: tx.ID, NewBadges: newBadges, Points: reward}, nil
 }
 
 func (s *Service) reject(ctx context.Context, cmd CheckCmd, reason string) (*CheckResult, error) {

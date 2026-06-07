@@ -56,7 +56,7 @@ func (h *Handler) check(c *gin.Context) {
 		c.JSON(400, gin.H{"ok": false, "reason": res.Reason})
 		return
 	}
-	c.JSON(200, gin.H{"ok": true, "transactionId": res.TransactionID, "newBadges": res.NewBadges})
+	c.JSON(200, gin.H{"ok": true, "transactionId": res.TransactionID, "newBadges": res.NewBadges, "points": res.Points})
 }
 
 func (h *Handler) currentCode(c *gin.Context) {
